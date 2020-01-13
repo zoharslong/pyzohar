@@ -4,7 +4,7 @@ ehthumbs.db
 Desktop.ini
 
 # Python:
-*.py[cod]
+# *.py[cod]
 *.so
 *.egg
 *.egg-info
@@ -14,4 +14,3 @@ build
 # My configurations:
 db.ini
 deploy_key_rsa
-ggkk.txt
