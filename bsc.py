@@ -36,18 +36,18 @@ dtt_fmt_rgx = {
 }
 
 # # cell alteration
-def fnc_rgx_frm_cll(cll, lst_rgx=None):
-    """
-    从一组自定义的正则列表中筛选出最后一个符合cll的正则表达式
-    :param cll: 目标单位, 类型为字符串
-    :param lst_rgx: 待匹配的正则表达式列表
-    :return: 一个匹配的正则表达式，类型为字符串
-    """
-    lst_rgx = list(dtt_fmt_rgx.values()) if lst_rgx is None else lst_rgx
-    rgx_xpt = None
-    for i_rgx in lst_rgx:
-        rgx_xpt = i_rgx if search(i_rgx, cll) else rgx_xpt
-    return rgx_xpt
+# def fnc_rgx_frm_cll(cll, lst_rgx=None):
+#     """
+#     从一组自定义的正则列表中筛选出最后一个符合cll的正则表达式
+#     :param cll: 目标单位, 类型为字符串
+#     :param lst_rgx: 待匹配的正则表达式列表
+#     :return: 一个匹配的正则表达式，类型为字符串
+#     """
+#     lst_rgx = list(dtt_fmt_rgx.values()) if lst_rgx is None else lst_rgx
+#     rgx_xpt = None
+#     for i_rgx in lst_rgx:
+#         rgx_xpt = i_rgx if search(i_rgx, cll) else rgx_xpt
+#     return rgx_xpt
 
 # # datetime type alteration and index
 def fnc_tms_frm_all(tms_mpt):
