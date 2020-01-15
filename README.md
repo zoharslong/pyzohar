@@ -1,4 +1,2 @@
 HelloWorld.
-new branch added.
-new branch added for conflict 001.
-new information from suface.
+These are private classes on own projects for programming faster.
