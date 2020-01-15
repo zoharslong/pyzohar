@@ -198,7 +198,6 @@ class dtz(object):
                 self.val = dt_datetime.strptime(self.val, self.fmt[0])
         else:
             raise TypeError('type of value not in [dt_datetime, dt_date, tm_structtime, pd_Timestamp, int, float, str]')
-        self.__init_rst()
         if rtn:
             return self.val
 
@@ -230,7 +229,6 @@ class dtz(object):
                 self.val = dt_datetime.strftime(self.val, str_fmt)
         else:
             raise KeyError("str_typ needs ['str','int','float','datetime','pd_timestamp','tm_structtime']")
-        self.__init_rst()
         if rtn:
             return self.val
 
@@ -260,7 +258,6 @@ class dtz(object):
         slf_dmh = self.val.timetuple().tm_mon                   # 得到month
         int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
         self.val = "%s%s%s" % (str(slf_dwk[0]), str_kwd, str(int_kwd).zfill(2))
-        self.__init_rst()
         if rtn:
             return self.val
 
@@ -285,7 +282,6 @@ class dtz(object):
             self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
         else:
             raise AttributeError('%s not in [\'%Yw%w\',\'%yw%w\']' % self.fmt)
-        self.__init_rst()
         if rtn:
             return self.val
 
@@ -311,7 +307,6 @@ class dtz(object):
                 self.val = dt_datetime(int_dyr, int_dmh, int_day)
         else:
             raise AttributeError('%s not in [\'%Ym%m\',\'%ym%m\']' % self.fmt)
-        self.__init_rst()
         if rtn:
             return self.val
 
@@ -343,6 +338,10 @@ class lsz(list):
     [1, 2, 3, 3, 3]
     >>> lsz([1,2,3]).mrg_to_cll(['_A','_B','_C'],rtn=True)
     ['1_A', '2_B', '3_C']
+    >>> lsz([[1,2],3,[4,5,[6,7,[8,9]]]]).nfd(False,True)
+    [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    >>> lsz().mrg('inter', False, True, [1, 2, 3], [2, 3, 4])
+    [2, 3]
     """
     __slots__ = ('__seq', 'typ', 'len', 'len_min', 'len_max')
     lst_typ_lsz = [
@@ -507,6 +506,57 @@ class lsz(list):
         self.typ_to_lst()
         lst_mrg = lsz(lst_mrg).cpy_to_tal(self.len, rtn=True)
         self.seq = [str(self.seq[i]) + str(lst_mrg[i]) for i in range(self.len)]
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def nfd(self, spr=False, rtn=False):
+        """
+        unfold lists in lsz.seq.
+        >>> lsz([[1,2],3,[4,5,[6,7,[8,9]]]]).nfd(False,True)
+        [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the final result
+        """
+        while [True for i_cll in self.seq if type(i_cll) in [list, tuple]]:     # check if there is any cell in list
+            lst_nfd = []
+            for i_cll in self.seq:
+                if type(i_cll) in [list]:
+                    for i in i_cll:
+                        lst_nfd.append(i)
+                else:
+                    lst_nfd.append(i_cll)
+            self.seq = lst_nfd
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def mrg(self, str_mtd, spr=False, rtn=False, *args):
+        """
+        merge lists in method intersection, difference or union.
+        >>> lsz().mrg('inter', False, True, [1, 2, 3], [2, 3, 4])
+        [2, 3]
+        :param str_mtd: ['inter','differ','union']
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :param args: lists to be merged
+        :return: if rtn is True, return the final result
+        """
+        if not self.seq:    # 当lsz.seq为空时，从*args中依次取值
+            self.seq = args[0]
+            int_bgn = 1
+        else:               # 当lsz.seq有值时，该list也加入计算
+            int_bgn = 0
+        for i in range(int_bgn, len(args)):
+            if str_mtd.lower() in ['intersection', 'inter']:    # 交
+                self.seq = list(set(self.seq) & set(args[i]))
+            elif str_mtd.lower() in ['difference', 'differ']:   # 差
+                self.seq = list(set(self.seq) ^ set(args[i]))
+            elif str_mtd.lower() in ['union']:                  # 并
+                self.seq = list(set(self.seq) | set(args[i]))
         if spr:
             self.spr_nit()
         if rtn:
