@@ -13,6 +13,7 @@ from pandas._libs.tslib import Timestamp as typ_pd_Timestamp
 from datetime import date as typ_dt_date, time as typ_dt_time, timedelta as typ_dt_timedelta
 from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mktime as tm_mktime
 from re import search as re_search
+from calendar import monthrange     # how many days in any month
 dct_tms_fTr = {
     '%Y-%m-%d %H:%M:%S ': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} $',
     '%Y-%m-%d %H:%M:%S': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}$',
@@ -86,7 +87,13 @@ class dtz(object):
     type datetime altered by zoharslong.
     >>> dtz(15212421.1).typ_to_dtt(rtn=True)    # from any type to datetime
     datetime.datetime(1970, 6, 26, 9, 40, 21)
-    >>> dtz('2019m03').prd_to_dtt(-1, rtn=True)
+    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ('str',rtn=True)    # from datetime to any type
+    '1970-06-26'
+    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).shf(5, rtn=True)    # 5 days after 1970-06-26 in type datetime
+    datetime.datetime(1970, 7, 1, 9, 40, 21)
+    >>> dtz('2019m03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 March
+    datetime.datetime(2019, 3, 31, 0, 0)
+    >>> dtz('2019w03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 3th week
     datetime.datetime(2019, 3, 31, 0, 0)
     """
     __slots__ = ('__val', 'typ', 'fmt',)
@@ -103,15 +110,30 @@ class dtz(object):
     ]   # dtz.val's type
 
     def __init__(self, val=None):
-        """"""
-        self.__val, self.typ = None, None
+        """
+        initiating dtz.val, dtz.typ.
+        :param val: a datetime content in any type, None for datetime.datetime.now()
+        """
+        self.__val, self.typ, self.fmt = None, None, None
         self.__init_rst(val)
 
     def __init_rst(self, val=None):
-        """private reset initiation"""
+        """
+        private reset initiation
+        :param val: a datetime content in any type, None for datetime.datetime.now()
+        :return: None
+        """
         if self.val is None:
             self.val = val if val is not None else dt_datetime.now()
+        self.__attr_rst()
+
+    def __attr_rst(self):
+        """
+        reset attributes dtz.typ, dtz.fmt
+        :return: None
+        """
         self.typ = type(self.val)
+        self.fmt = stz(self.val).add_fmt(rtn=True) if self.typ == str else self.fmt
 
     @property
     def val(self):
@@ -122,7 +144,7 @@ class dtz(object):
         return self.__val
 
     @val.setter
-    def val(self, val=None):
+    def val(self, val):
         """
         dtz.val = val
         :param val: a value to import.
@@ -130,6 +152,7 @@ class dtz(object):
         """
         if val is None or type(val) in self.lst_typ_dtz:
             self.__val = val
+            self.__attr_rst()
         else:
             raise TypeError('val\'s type %s is not available.' % type(val))
 
@@ -145,7 +168,7 @@ class dtz(object):
         return '%s' % str_xpt
     __repr__ = __str__  # 调用类名的输出与print(className)相同
 
-    def typ_to_dtt(self, rtn=False, *args):
+    def typ_to_dtt(self, rtn=False):
         """
         alter other type to datetime.datetime type
         fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str
@@ -163,11 +186,10 @@ class dtz(object):
         elif self.typ in [int, float]:
             self.val = dt_datetime.fromtimestamp(int(str(self.val).rsplit('.')[0]))
         elif self.typ in [str, stz]:
-            slf_fmt = stz(self.val).add_fmt(rtn=True)   # self.format
-            if [True for i in slf_fmt if i in ['float', 'int']]:
+            if [True for i in self.fmt if i in ['float', 'int']]:
                 self.val = dt_datetime.fromtimestamp(int(self.val.rsplit('.')[0]))
             else:
-                self.val = dt_datetime.strptime(self.val, slf_fmt[0])
+                self.val = dt_datetime.strptime(self.val, self.fmt[0])
         else:
             raise TypeError('type of value not in [dt_datetime, dt_date, tm_structtime, pd_Timestamp, int, float, str]')
         self.__init_rst()
@@ -238,32 +260,42 @@ class dtz(object):
 
     def dwk_to_dtt(self, flt_dlt=1, rtn=False):
         """
-        :param flt_dlt: in range(1,7) for '%yw%w', range(-7,-1) also equals to range(1,7)
-        :param rtn:
-        :return:
+        alter string in format '19w01' to a certain datetime in this period.
+        :param flt_dlt: in range(1,7) for '%Yw%w', range(-7,-1) also equals to range(1,7)
+        :param rtn: return the result or not
+        :return: if rtn is True, return
         """
-        slf_fmt = stz(self.val).add_fmt(rtn=True)
-        if '%Yw%w' not in slf_fmt:
-            raise AttributeError('%s not in [\'%Yw%w\']' % slf_fmt)
-        else:
+        if [True for i in self.fmt if i in ['%Yw%w', '%yw%w']]:
             int_dyr = int(self.val.rsplit('w')[0])
+            if int_dyr < 50:
+                int_dyr = int(int_dyr + 2000)
+            elif int_dyr < 100:
+                int_dyr = int(int_dyr + 1900)
             int_dwk = int(self.val.rsplit('w')[1])
             dtt_jan = typ_dt_date(int_dyr, 1, 4)
             dtt_dlt = typ_dt_timedelta(dtt_jan.isoweekday() - 1)
             bgn_dyr = dtt_jan - dtt_dlt
             flt_dlt = 8 + flt_dlt if flt_dlt < 0 else flt_dlt
             self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
-            self.__init_rst()
+        else:
+            raise AttributeError('%s not in [\'%Yw%w\',\'%yw%w\']' % self.fmt)
+        self.__init_rst()
         if rtn:
             return self.val
 
     def dmh_to_dtt(self, flt_dlt=1, rtn=False):
-        slf_fmt = stz(self.val).add_fmt(rtn=True)
-        if '%Ym%m' not in slf_fmt:
-            raise AttributeError('%s not in [\'%Ym%m\']' % slf_fmt)
-        else:
-            from calendar import monthrange
+        """
+        alter string in format '19m01' to a certain datetime in this period.
+        :param flt_dlt: in range(1,28/31) for '%Ym%m', range(-31/-28,-1) also equals to range(1,28/31)
+        :param rtn: return the result or not
+        :return: if rtn is True, return
+        """
+        if [True for i in self.fmt if i in ['%Ym%m', '%ym%m']]:
             int_dyr = int(self.val.rsplit('m')[0])
+            if int_dyr < 50:
+                int_dyr = int(int_dyr + 2000)
+            elif int_dyr < 100:
+                int_dyr = int(int_dyr + 1900)
             int_dmh = int(self.val.rsplit('m')[1])
             int_max = monthrange(int_dyr, int_dmh)[1]
             if int_max - flt_dlt < 0:
@@ -271,9 +303,11 @@ class dtz(object):
             else:
                 int_day = flt_dlt if flt_dlt > 0 else int_max + 1 + flt_dlt
                 self.val = dt_datetime(int_dyr, int_dmh, int_day)
-                self.__init_rst()
-                if rtn:
-                    return self.val
+        else:
+            raise AttributeError('%s not in [\'%Ym%m\',\'%ym%m\']' % self.fmt)
+        self.__init_rst()
+        if rtn:
+            return self.val
 
     def prd_to_dtt(self, flt_dlt=1, rtn=False):
         """
@@ -282,12 +316,89 @@ class dtz(object):
         :param rtn: return the result or not
         :return: if rtn is True, return
         """
-        if re_search('w', self.val):
-            self.dwk_to_dtt(flt_dlt, rtn)
-        elif re_search('m', self.val):
-            self.dmh_to_dtt(flt_dlt, rtn)
+        if [True for i in self.fmt if i in ['%Yw%w', '%yw%w']]:
+            self.dwk_to_dtt(flt_dlt)
+        elif [True for i in self.fmt if i in ['%Ym%m', '%ym%m']]:
+            self.dmh_to_dtt(flt_dlt)
         else:
-            raise AttributeError('%s is not in format [\'%Yw%w\',\'%Ym%m\']')
+            raise AttributeError('%s is not in format [\'%Yw%w\',\'%yw%w\',\'%Ym%m\',\'%ym%m\']')
+        if rtn:
+            return self.val
+
+
+class lsz(list):
+    """
+    type list altered by zoharslong.
+    """
+    lst_typ_lsz = [
+        list,
+        dict,
+        tuple,
+    ]   # lsz.seq's type
+
+    def __init__(self, seq=None, spr=False):
+        """
+        create a new list object from the given object.
+        :param seq: first, save target into lsz.seq
+        :param spr: let lsz = lsz.seq or not, default False
+        """
+        super().__init__()
+        self.__seq, self.typ = None, None
+        self.__init_rst(seq, spr)
+
+    def __init_rst(self, seq=None, spr=False):
+        """
+        private reset initiation
+        :param seq: a list content in any type, None for []
+        :param spr: let lsz = lsz.seq or not, default False
+        :return: None
+        """
+        if self.seq is None:
+            self.seq = seq if seq is not None else []
+        self.__attr_rst()
+        if spr:
+            self.spr_nit()
+
+    def __attr_rst(self):
+        """
+        reset attributes lsz.typ
+        :return: None
+        """
+        self.typ = type(self.__seq)
+
+    def spr_nit(self, rtn=False):
+        """
+        let lsz = lsz.seq or not
+        :param rtn: return lsz or not, default False
+        :return: if rtn is True, return lsz
+        """
+        super(lsz, self).__init__(self.__seq)
+        if rtn:
+            return self
+
+    @property
+    def seq(self):
+        """
+        @property get & set lsz.seq
+        :return: lsz.seq
+        """
+        return self.__seq
+
+    @seq.setter
+    def seq(self, seq):
+        """
+        lsz.seq = seq
+        :param seq: a sequence to import.
+        :return: None
+        """
+        if seq is None or type(seq) in self.lst_typ_lsz:
+            self.__seq = seq
+            self.__attr_rst()
+        else:
+            raise TypeError('seq\'s type %s is not available.' % type(seq))
+
+    def typ_to_lst(self, spr=False, rtn=False):
+        pass
 
 
 print('ready.')
