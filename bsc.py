@@ -14,6 +14,11 @@ from datetime import date as typ_dt_date, time as typ_dt_time, timedelta as typ_
 from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mktime as tm_mktime
 from re import search as re_search
 from calendar import monthrange     # how many days in any month
+from numpy import array as np_array, ndarray as typ_np_ndarray
+from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
+from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
+from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
+from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
 dct_tms_fTr = {
     '%Y-%m-%d %H:%M:%S ': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} $',
     '%Y-%m-%d %H:%M:%S': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}$',
@@ -53,8 +58,8 @@ class stz(str):
 
     def add_rgx(self, lst_rgx=None, rtn=False):
         """
-        match regex
-        从传入的正则列表中筛选出符合类的正则表达式组成列表
+        match regex.
+        从传入的正则列表中筛选出符合类的正则表达式组成列表.
         :param lst_rgx: 参与匹配的正则表达式列表
         :param rtn: return or not, default False
         :return: None
@@ -67,8 +72,8 @@ class stz(str):
 
     def add_fmt(self, dct_rgx=None, rtn=False):
         """
-        match format
-        从传入的格式-正则字典中筛选出符合类的格式组成列表
+        match format.
+        从传入的格式-正则字典中筛选出符合类的格式组成列表.
         :param dct_rgx: 参与匹配的格式-正则表达式字典
         :param rtn: return or not, default False
         :return: None
@@ -119,7 +124,7 @@ class dtz(object):
 
     def __init_rst(self, val=None):
         """
-        private reset initiation
+        private reset initiation.
         :param val: a datetime content in any type, None for datetime.datetime.now()
         :return: None
         """
@@ -129,7 +134,7 @@ class dtz(object):
 
     def __attr_rst(self):
         """
-        reset attributes dtz.typ, dtz.fmt
+        reset attributes dtz.typ, dtz.fmt.
         :return: None
         """
         self.typ = type(self.val)
@@ -138,7 +143,7 @@ class dtz(object):
     @property
     def val(self):
         """
-        @property get & set dtz.val
+        @property get & set dtz.val.
         :return: dtz.val
         """
         return self.__val
@@ -146,7 +151,7 @@ class dtz(object):
     @val.setter
     def val(self, val):
         """
-        dtz.val = val
+        dtz.val = val.
         :param val: a value to import.
         :return: None
         """
@@ -158,7 +163,7 @@ class dtz(object):
 
     def __str__(self):
         """
-        print(className)
+        print(className).
         :return: None
         """
         if type(self.__val) == typ_tm_structtime:
@@ -170,8 +175,8 @@ class dtz(object):
 
     def typ_to_dtt(self, rtn=False):
         """
-        alter other type to datetime.datetime type
-        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str
+        alter other type to datetime.datetime type.
+        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
         :param rtn: return the result or not, default False
         :return: if rtn is True, return dtz.val
         """
@@ -198,8 +203,8 @@ class dtz(object):
 
     def dtt_to_typ(self, str_typ='str', str_fmt='%Y-%m-%d', rtn=False):
         """
-        alter datetime.datetime type to other type
-        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str
+        alter datetime.datetime type to other type.
+        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
         :param str_typ: target type
         :param str_fmt: if str_typ in ['str'],
         :param rtn: return the result or not, default False
@@ -230,7 +235,7 @@ class dtz(object):
 
     def shf(self, flt_dlt=0, rtn=False):
         """
-        shift days from dtz.val, type of dtz.val will be datetime.datetime
+        shift days from dtz.val, type of dtz.val will be datetime.datetime.
         :param flt_dlt: how many days to shift, delta in type float
         :param rtn: return or not, default False
         :return: if rtn is True, return the result
@@ -243,7 +248,7 @@ class dtz(object):
 
     def dtt_to_prd(self, str_kwd='w', rtn=False):
         """
-        alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m']
+        alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m'].
         :param str_kwd: in ['w','m']
         :param rtn: return or not
         :return: result in format ['%Ym%m','%Yw%w']
@@ -311,7 +316,7 @@ class dtz(object):
 
     def prd_to_dtt(self, flt_dlt=1, rtn=False):
         """
-        alter period string in format ['%Yw%w','%Ym%m'] to datetime.datetime type
+        alter period string in format ['%[Yy]w%w','%[Yy]m%m'] to datetime.datetime type.
         :param flt_dlt: which day in the period to export, in range(1,7) for week and range(1,28-31) for month
         :param rtn: return the result or not
         :return: if rtn is True, return
@@ -331,9 +336,16 @@ class lsz(list):
     type list altered by zoharslong.
     """
     lst_typ_lsz = [
+        str,
+        stz,
         list,
         dict,
         tuple,
+        typ_np_ndarray,
+        typ_pd_DataFrame,
+        typ_pd_Series,
+        typ_pd_Index,
+        typ_pd_RangeIndex,
     ]   # lsz.seq's type
 
     def __init__(self, seq=None, spr=False):
@@ -343,12 +355,12 @@ class lsz(list):
         :param spr: let lsz = lsz.seq or not, default False
         """
         super().__init__()
-        self.__seq, self.typ = None, None
+        self.__seq, self.typ, self.len, self.len_max, self.len_min = None, None, None, None, None
         self.__init_rst(seq, spr)
 
     def __init_rst(self, seq=None, spr=False):
         """
-        private reset initiation
+        private reset initiation.
         :param seq: a list content in any type, None for []
         :param spr: let lsz = lsz.seq or not, default False
         :return: None
@@ -361,14 +373,14 @@ class lsz(list):
 
     def __attr_rst(self):
         """
-        reset attributes lsz.typ
+        reset attributes lsz.typ.
         :return: None
         """
         self.typ = type(self.__seq)
 
     def spr_nit(self, rtn=False):
         """
-        let lsz = lsz.seq or not
+        let lsz = lsz.seq.
         :param rtn: return lsz or not, default False
         :return: if rtn is True, return lsz
         """
@@ -379,7 +391,7 @@ class lsz(list):
     @property
     def seq(self):
         """
-        @property get & set lsz.seq
+        @property get & set lsz.seq.
         :return: lsz.seq
         """
         return self.__seq
@@ -387,7 +399,7 @@ class lsz(list):
     @seq.setter
     def seq(self, seq):
         """
-        lsz.seq = seq
+        lsz.seq = seq.
         :param seq: a sequence to import.
         :return: None
         """
@@ -397,7 +409,33 @@ class lsz(list):
         else:
             raise TypeError('seq\'s type %s is not available.' % type(seq))
 
-    def typ_to_lst(self, spr=False, rtn=False):
+    def typ_to_lst(self, spr=False, rtn=False, prm='record'):
+        """
+        alter lsz.seq's type to list.
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :param prm: if lsz.seq is pd.DataFrame, method in ['dict', 'list', 'series', 'split', 'records', 'index']
+        :return: if rtn is True, return the final result
+        """
+        if self.typ in [list]:
+            pass
+        elif self.typ in [dict]:
+            self.seq = list(self.seq.items())
+        elif self.typ in [tuple, typ_pd_Series, typ_pd_Index, typ_pd_RangeIndex]:
+            self.seq = list(self.seq)
+        elif self.typ in [typ_np_ndarray]:
+            self.seq = self.seq.tolist()
+        elif self.typ in [typ_pd_DataFrame]:
+            self.seq = self.seq.to_dict(orient=prm)
+        else:
+            self.seq = [self.seq]
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def lst_to_typ(self, str_typ='list', spr=False, rtn=False, prm=None):
+        """"""
         pass
 
 
