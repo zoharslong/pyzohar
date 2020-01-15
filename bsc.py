@@ -19,6 +19,7 @@ from pandas.core.series import Series as typ_pd_Series                  # 定义
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
+from pandas import DataFrame as pd_DataFrame
 dct_tms_fTr = {
     '%Y-%m-%d %H:%M:%S ': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} $',
     '%Y-%m-%d %H:%M:%S': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}$',
@@ -334,7 +335,16 @@ class dtz(object):
 class lsz(list):
     """
     type list altered by zoharslong.
+    >>> lsz({'A':1,'B':2,'C':3}).typ_to_lst(rtn=True)
+    [('A', 1), ('B', 2), ('C', 3)]
+    >>> lsz([1,2,3]).lst_to_typ('dict', rtn=True, prm=['A','B','C'])
+    [{'A': 1, 'B': 2, 'C': 3}]
+    >>> lsz([1,2,3]).cpy_to_tal(5,rtn=True)
+    [1, 2, 3, 3, 3]
+    >>> lsz([1,2,3]).mrg_to_cll(['_A','_B','_C'],rtn=True)
+    ['1_A', '2_B', '3_C']
     """
+    __slots__ = ('__seq', 'typ', 'len', 'len_min', 'len_max')
     lst_typ_lsz = [
         str,
         stz,
@@ -348,7 +358,7 @@ class lsz(list):
         typ_pd_RangeIndex,
     ]   # lsz.seq's type
 
-    def __init__(self, seq=None, spr=False):
+    def __init__(self, seq=None, spr=True):
         """
         create a new list object from the given object.
         :param seq: first, save target into lsz.seq
@@ -377,16 +387,30 @@ class lsz(list):
         :return: None
         """
         self.typ = type(self.__seq)
+        self.len = len(self.__seq)
+        self.edg_of_len()
 
     def spr_nit(self, rtn=False):
         """
-        let lsz = lsz.seq.
+        super initiation. let lsz = lsz.seq.
         :param rtn: return lsz or not, default False
         :return: if rtn is True, return lsz
         """
         super(lsz, self).__init__(self.__seq)
         if rtn:
             return self
+
+    def edg_of_len(self, rtn=False):
+        """
+        get the max and min length of cells in lsz.seq.
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the result in format [min, max]
+        """
+        lst_len = [len(i) for i in self.seq if type(i) in [self.lst_typ_lsz]]
+        self.len_max = max(lst_len) if lst_len != [] else None
+        self.len_min = min(lst_len) if lst_len != [] else None
+        if rtn:
+            return [self.len_min, self.len_max]
 
     @property
     def seq(self):
@@ -436,7 +460,57 @@ class lsz(list):
 
     def lst_to_typ(self, str_typ='list', spr=False, rtn=False, prm=None):
         """"""
-        pass
+        self.typ_to_lst()
+        if str_typ.lower() in ['list', 'lst']:
+            pass
+        elif str_typ.lower() in ['listt', 'lstt', 't']:
+            self.seq = np_array(self.seq).T.tolist()
+        elif str_typ.lower() in ['dict', 'dct', '[dict]', '[dct]', 'listdict', 'lstdct']:  # [a,b]+[1,1]->[{a:1},{b:1}]
+            self.seq = pd_DataFrame([self.seq], columns=lsz(prm).typ_to_lst(rtn=True)).to_dict(orient='record')
+        elif str_typ.lower() in ['listtuple', 'lsttpl', 'list_tuple', 'lst_tpl']:   # [a,b,..]+[1,1,..] ->[(a,1),..]
+            lst_prm = lsz(prm).cpy_to_tal(self.len, rtn=True)
+            self.seq = [(i, lst_prm[self.seq.index(i)]) for i in self.seq]
+        elif str_typ.lower() in ['str']:  # 用于将list转化为不带引号的字符串:[1,'a',...] -> "1,a,..."
+            self.seq = str(self.seq).replace("'", '')[1:-1]
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def cpy_to_tal(self, flt_len, spr=False, rtn=False):
+        """
+        copy the last cell to tails until lsz.len equals to flt_len.
+        :param flt_len: the target length of lsz after running this def
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the final result
+        """
+        self.typ_to_lst()
+        lst_xpt = self.seq.copy()
+        while len(lst_xpt) < flt_len:
+            lst_xpt.append(self.seq[-1])
+        self.seq = lst_xpt
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def mrg_to_cll(self, lst_mrg, spr=False, rtn=False):
+        """
+        in lsz.seq, cell to cell merging.
+        structuring: ['a','b',...] -> ['ax','bx',...].
+        :param lst_mrg: a list to merge in method cell by cell
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the final result
+        """
+        self.typ_to_lst()
+        lst_mrg = lsz(lst_mrg).cpy_to_tal(self.len, rtn=True)
+        self.seq = [str(self.seq[i]) + str(lst_mrg[i]) for i in range(self.len)]
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
 
 
 print('ready.')
