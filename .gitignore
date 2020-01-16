@@ -12,6 +12,7 @@ dist
 build
 
 # My configurations:
+.idea
 .idea/*
 .idea/misc.xml
 .idea/pyzohar.iml
