@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Mar 22 16:30:38 2019
+basic type's alteration.
 @author: zoharslong
 
 @alters:
@@ -102,7 +103,7 @@ class dtz(object):
     >>> dtz('2019w03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 3th week
     datetime.datetime(2019, 3, 31, 0, 0)
     """
-    __slots__ = ('__val', 'typ', 'fmt',)
+    __slots__ = ('__val', 'typ', 'len', 'fmt',)
     lst_typ_dtz = [
         str,
         stz,
@@ -120,7 +121,7 @@ class dtz(object):
         initiating dtz.val, dtz.typ.
         :param val: a datetime content in any type, None for datetime.datetime.now()
         """
-        self.__val, self.typ, self.fmt = None, None, None
+        self.__val, self.typ, self.len, self.fmt = None, None, None, None
         self.__init_rst(val)
 
     def __init_rst(self, val=None):
@@ -131,15 +132,6 @@ class dtz(object):
         """
         if self.val is None:
             self.val = val if val is not None else dt_datetime.now()
-        self.__attr_rst()
-
-    def __attr_rst(self):
-        """
-        reset attributes dtz.typ, dtz.fmt.
-        :return: None
-        """
-        self.typ = type(self.val)
-        self.fmt = stz(self.val).add_fmt(rtn=True) if self.typ == str else self.fmt
 
     @property
     def val(self):
@@ -160,7 +152,16 @@ class dtz(object):
             self.__val = val
             self.__attr_rst()
         else:
-            raise TypeError('val\'s type %s is not available.' % type(val))
+            raise TypeError('info: val\'s type %s is not available.' % type(val))
+
+    def __attr_rst(self):
+        """
+        reset attributes dtz.typ, dtz.fmt.
+        :return: None
+        """
+        self.typ = type(self.__val)
+        self.len = len(self.__val) if self.typ in [str, stz] else None
+        self.fmt = stz(self.__val).add_fmt(rtn=True) if self.typ == str else None
 
     def __str__(self):
         """
@@ -378,18 +379,8 @@ class lsz(list):
         """
         if self.seq is None:
             self.seq = seq if seq is not None else []
-        self.__attr_rst()
         if spr:
             self.spr_nit()
-
-    def __attr_rst(self):
-        """
-        reset attributes lsz.typ.
-        :return: None
-        """
-        self.typ = type(self.__seq)
-        self.len = len(self.__seq)
-        self.edg_of_len()
 
     def spr_nit(self, rtn=False):
         """
@@ -403,18 +394,6 @@ class lsz(list):
             print('info: %s cannot convert to list.' % (str(self.__seq)[:8]+'..'))
         if rtn:
             return self
-
-    def edg_of_len(self, rtn=False):
-        """
-        get the max and min length of cells in lsz.seq.
-        :param rtn: return the result or not, default False
-        :return: if rtn is True, return the result in format [min, max]
-        """
-        lst_len = [len(i) for i in self.seq if type(i) in self.lst_typ_lsz]
-        self.len_max = max(lst_len) if lst_len != [] else None
-        self.len_min = min(lst_len) if lst_len != [] else None
-        if rtn:
-            return [self.len_min, self.len_max]
 
     @property
     def seq(self):
@@ -436,6 +415,27 @@ class lsz(list):
             self.__attr_rst()
         else:
             raise TypeError('seq\'s type %s is not available.' % type(seq))
+
+    def edg_of_len(self, rtn=False):
+        """
+        get the max and min length of cells in lsz.seq.
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the result in format [min, max]
+        """
+        lst_len = [len(i) for i in self.seq if type(i) in self.lst_typ_lsz]
+        self.len_max = max(lst_len) if lst_len != [] else None
+        self.len_min = min(lst_len) if lst_len != [] else None
+        if rtn:
+            return [self.len_min, self.len_max]
+
+    def __attr_rst(self):
+        """
+        reset attributes lsz.typ.
+        :return: None
+        """
+        self.typ = type(self.__seq)
+        self.len = len(self.__seq)
+        self.edg_of_len()
 
     def typ_to_lst(self, *, spr=False, rtn=False, prm='record'):
         """
@@ -657,19 +657,8 @@ class dcz(dict):
         """
         if self.seq is None:
             self.seq = seq if seq is not None else {}
-        self.__attr_rst()
         if spr:
             self.spr_nit()
-
-    def __attr_rst(self):
-        """
-        reset attributes dcz.typ.
-        :return: None
-        """
-        self.typ = type(self.__seq)
-        self.len = len(self.__seq)
-        self.kys = list(self.__seq.keys()) if self.typ in [dict] else None
-        self.vls = list(self.__seq.values()) if self.typ in [dict] else None
 
     def spr_nit(self, rtn=False):
         """
@@ -705,6 +694,16 @@ class dcz(dict):
             self.__attr_rst()
         else:
             raise TypeError('seq\'s type %s is not available.' % type(seq))
+
+    def __attr_rst(self):
+        """
+        reset attributes dcz.typ.
+        :return: None
+        """
+        self.typ = type(self.__seq)
+        self.len = len(self.__seq)
+        self.kys = list(self.__seq.keys()) if self.typ in [dict] else None
+        self.vls = list(self.__seq.values()) if self.typ in [dict] else None
 
     def typ_to_dct(self, *args, spr=False, rtn=False):
         """
