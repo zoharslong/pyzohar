@@ -93,7 +93,7 @@ class dtz(object):
     type datetime altered by zoharslong.
     >>> dtz(15212421.1).typ_to_dtt(rtn=True)    # from any type to datetime
     datetime.datetime(1970, 6, 26, 9, 40, 21)
-    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ('str',rtn=True)    # from datetime to any type
+    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ('str', rtn=True)   # from datetime to any type
     '1970-06-26'
     >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).shf(5, rtn=True)    # 5 days after 1970-06-26 in type datetime
     datetime.datetime(1970, 7, 1, 9, 40, 21)
@@ -201,7 +201,7 @@ class dtz(object):
         if rtn:
             return self.val
 
-    def dtt_to_typ(self, str_typ='str', str_fmt='%Y-%m-%d', rtn=False):
+    def dtt_to_typ(self, str_typ='str', str_fmt='%Y-%m-%d', *, rtn=False):
         """
         alter datetime.datetime type to other type.
         fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
@@ -229,19 +229,6 @@ class dtz(object):
                 self.val = dt_datetime.strftime(self.val, str_fmt)
         else:
             raise KeyError("str_typ needs ['str','int','float','datetime','pd_timestamp','tm_structtime']")
-        if rtn:
-            return self.val
-
-    def shf(self, flt_dlt=0, rtn=False):
-        """
-        shift days from dtz.val, type of dtz.val will be datetime.datetime.
-        :param flt_dlt: how many days to shift, delta in type float
-        :param rtn: return or not, default False
-        :return: if rtn is True, return the result
-        """
-        if self.typ not in [dt_datetime]:
-            self.typ_to_dtt()
-        self.val += typ_dt_timedelta(days=flt_dlt)
         if rtn:
             return self.val
 
@@ -326,22 +313,37 @@ class dtz(object):
         if rtn:
             return self.val
 
+    def shf(self, flt_dlt=0, rtn=False):
+        """
+        shift days from dtz.val, type of dtz.val will be datetime.datetime.
+        :param flt_dlt: how many days to shift, delta in type float
+        :param rtn: return or not, default False
+        :return: if rtn is True, return the result
+        """
+        if self.typ not in [dt_datetime]:
+            self.typ_to_dtt()
+        self.val += typ_dt_timedelta(days=flt_dlt)
+        if rtn:
+            return self.val
+
 
 class lsz(list):
     """
     type list altered by zoharslong.
     >>> lsz({'A':1,'B':2,'C':3}).typ_to_lst(rtn=True)
     [('A', 1), ('B', 2), ('C', 3)]
-    >>> lsz([1,2,3]).lst_to_typ('dict', rtn=True, prm=['A','B','C'])
+    >>> lsz([1,2,3]).lst_to_typ('dict', ['A','B','C'], rtn=True)
     [{'A': 1, 'B': 2, 'C': 3}]
-    >>> lsz([1,2,3]).cpy_to_tal(5,rtn=True)
+    >>> lsz([1,2,3]).cpy_tal(5, rtn=True)
     [1, 2, 3, 3, 3]
-    >>> lsz([1,2,3]).mrg_to_cll(['_A','_B','_C'],rtn=True)
+    >>> lsz([1,2,3]).mrg_cll(['_A','_B','_C'], rtn=True)
     ['1_A', '2_B', '3_C']
-    >>> lsz([[1,2],3,[4,5,[6,7,[8,9]]]]).nfd(False,True)
+    >>> lsz([[1,2],3,[4,5,[6,7,[8,9]]]]).nfd(rtn=True)
     [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    >>> lsz().mrg('inter', False, True, [1, 2, 3], [2, 3, 4])
+    >>> lsz().mrg('inter', [1, 2, 3], [2, 3, 4], rtn=True)
     [2, 3]
+    >>> lsz(['O']).chk_dtf_dtp(pd_DataFrame([{"A":1,"B":"a"},{"A":2,"B":"b"}]), rtn=True)
+    ['B']
     """
     __slots__ = ('__seq', 'typ', 'len', 'len_min', 'len_max')
     lst_typ_lsz = [
@@ -395,7 +397,10 @@ class lsz(list):
         :param rtn: return lsz or not, default False
         :return: if rtn is True, return lsz
         """
-        super(lsz, self).__init__(self.__seq)
+        try:
+            super(lsz, self).__init__(self.__seq)
+        except TypeError:
+            print('info: %s cannot convert to list.' % (str(self.__seq)[:8]+'..'))
         if rtn:
             return self
 
@@ -405,7 +410,7 @@ class lsz(list):
         :param rtn: return the result or not, default False
         :return: if rtn is True, return the result in format [min, max]
         """
-        lst_len = [len(i) for i in self.seq if type(i) in [self.lst_typ_lsz]]
+        lst_len = [len(i) for i in self.seq if type(i) in self.lst_typ_lsz]
         self.len_max = max(lst_len) if lst_len != [] else None
         self.len_min = min(lst_len) if lst_len != [] else None
         if rtn:
@@ -432,7 +437,7 @@ class lsz(list):
         else:
             raise TypeError('seq\'s type %s is not available.' % type(seq))
 
-    def typ_to_lst(self, spr=False, rtn=False, prm='record'):
+    def typ_to_lst(self, *, spr=False, rtn=False, prm='record'):
         """
         alter lsz.seq's type to list.
         :param spr: let lsz = lsz.seq or not, default False
@@ -457,26 +462,39 @@ class lsz(list):
         if rtn:
             return self.seq
 
-    def lst_to_typ(self, str_typ='list', spr=False, rtn=False, prm=None):
-        """"""
+    def lst_to_typ(self, str_typ='list', *args, spr=False, rtn=False):
+        """
+        alter list to other type.
+        :param str_typ: target data type
+        :param args: if needs other list to merge, import here, len(args) in [1,2]
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the final result
+        """
         self.typ_to_lst()
         if str_typ.lower() in ['list', 'lst']:
             pass
         elif str_typ.lower() in ['listt', 'lstt', 't']:
             self.seq = np_array(self.seq).T.tolist()
-        elif str_typ.lower() in ['dict', 'dct', '[dict]', '[dct]', 'listdict', 'lstdct']:  # [a,b]+[1,1]->[{a:1},{b:1}]
-            self.seq = pd_DataFrame([self.seq], columns=lsz(prm).typ_to_lst(rtn=True)).to_dict(orient='record')
-        elif str_typ.lower() in ['listtuple', 'lsttpl', 'list_tuple', 'lst_tpl']:   # [a,b,..]+[1,1,..] ->[(a,1),..]
-            lst_prm = lsz(prm).cpy_to_tal(self.len, rtn=True)
-            self.seq = [(i, lst_prm[self.seq.index(i)]) for i in self.seq]
         elif str_typ.lower() in ['str']:  # 用于将list转化为不带引号的字符串:[1,'a',...] -> "1,a,..."
             self.seq = str(self.seq).replace("'", '')[1:-1]
+        elif str_typ.lower() in ['dict', 'dct', '[dict]', '[dct]', 'listdict', 'lstdct']:  # [a,b]+[1,1]->[{a:1},{b:1}]
+            self.seq = args[-1] if not self.seq else self.seq  # 当lsz.seq为空时，从*args中依次取值
+            self.seq = pd_DataFrame([self.seq], columns=lsz(args[0]).typ_to_lst(rtn=True)).to_dict(orient='record')
+        elif str_typ.lower() in ['listtuple', 'lsttpl', 'list_tuple', 'lst_tpl']:   # [a,b,..]+[1,1,..] ->[(a,1),..]
+            if not self.seq:  # 当lsz.seq为空时，从*args中依次取值
+                int_bgn, self.seq = -1, args[0]
+            else:
+                int_bgn = 0
+            lst_prm = lsz(args[int_bgn]).cpy_tal(self.len, rtn=True)
+            self.seq = [(i, lst_prm[self.seq.index(i)]) for i in self.seq]
+
         if spr:
             self.spr_nit()
         if rtn:
             return self.seq
 
-    def cpy_to_tal(self, flt_len, spr=False, rtn=False):
+    def cpy_tal(self, flt_len, *, spr=False, rtn=False):
         """
         copy the last cell to tails until lsz.len equals to flt_len.
         :param flt_len: the target length of lsz after running this def
@@ -494,18 +512,25 @@ class lsz(list):
         if rtn:
             return self.seq
 
-    def mrg_to_cll(self, lst_mrg, spr=False, rtn=False):
+    def mrg_cll(self, *args, spr=False, rtn=False):
         """
         in lsz.seq, cell to cell merging.
-        structuring: ['a','b',...] -> ['ax','bx',...].
-        :param lst_mrg: a list to merge in method cell by cell
+        structuring: ['a','b',...] + ['x'] -> ['ax','bx',...].
+        :param args: lists to merge in method cell by cell
         :param spr: let lsz = lsz.seq or not, default False
         :param rtn: return the result or not, default False
         :return: if rtn is True, return the final result
         """
         self.typ_to_lst()
-        lst_mrg = lsz(lst_mrg).cpy_to_tal(self.len, rtn=True)
-        self.seq = [str(self.seq[i]) + str(lst_mrg[i]) for i in range(self.len)]
+        flt_max = lsz(args).edg_of_len(True)[1]
+        if not self.seq:    # 当lsz.seq为空时，从*args中依次取值
+            int_bgn, self.seq = 1, args[0]
+        else:               # 当lsz.seq有值时，该list也加入计算
+            int_bgn = 0
+        self.cpy_tal(flt_max)
+        for i in range(int_bgn, len(args)):
+            lst_mrg = lsz(args[i]).cpy_tal(flt_max, rtn=True)
+            self.seq = [str(self.seq[i]) + str(lst_mrg[i]) for i in range(self.len)]
         if spr:
             self.spr_nit()
         if rtn:
@@ -520,6 +545,7 @@ class lsz(list):
         :param rtn: return the result or not, default False
         :return: if rtn is True, return the final result
         """
+        self.typ_to_lst()
         while [True for i_cll in self.seq if type(i_cll) in [list, tuple]]:     # check if there is any cell in list
             lst_nfd = []
             for i_cll in self.seq:
@@ -534,20 +560,20 @@ class lsz(list):
         if rtn:
             return self.seq
 
-    def mrg(self, str_mtd, spr=False, rtn=False, *args):
+    def mrg(self, str_mtd, *args, spr=False, rtn=False):
         """
         merge lists in method intersection, difference or union.
         >>> lsz().mrg('inter', False, True, [1, 2, 3], [2, 3, 4])
         [2, 3]
         :param str_mtd: ['inter','differ','union']
+        :param args: lists to be merged
         :param spr: let lsz = lsz.seq or not, default False
         :param rtn: return the result or not, default False
-        :param args: lists to be merged
         :return: if rtn is True, return the final result
         """
+        self.typ_to_lst()
         if not self.seq:    # 当lsz.seq为空时，从*args中依次取值
-            self.seq = args[0]
-            int_bgn = 1
+            int_bgn, self.seq = 1, args[0]
         else:               # 当lsz.seq有值时，该list也加入计算
             int_bgn = 0
         for i in range(int_bgn, len(args)):
@@ -562,5 +588,168 @@ class lsz(list):
         if rtn:
             return self.seq
 
+    def chk_dtf_dtp(self, dtf_chk, *, spr=False, rtn=False, prm=None):
+        """
+        check dataframe's columns' dtype.
+        >>> lsz(['O']).chk_dtf_dtp(pd_DataFrame([{"A":1,"B":"a"},{"A":2,"B":"b"}]),rtn=True)
+        ['B']
+        :param dtf_chk: the target dataframe to be listing
+        :param spr: let lsz = lsz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :param prm: a list of columns' dtype, such as ['O','int64','float64',...], can be shown by dataframe.dtypes
+        :return: if rtn is True, return the final result
+        """
+        self.typ_to_lst()
+        lst_clm_dtp = []
+        if self.seq is None and prm is not None:
+            self.seq = lsz(prm).typ_to_lst(rtn=True)
+        for i_dtp in self.seq:
+            lst_clm_dtp.extend(dtf_chk.dtypes[dtf_chk.dtypes == i_dtp].index.values)
+        self.seq = lst_clm_dtp
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
 
-print('ready.')
+
+class dcz(dict):
+    """
+    type dict altered by zoharslong.
+    >>> dcz().typ_to_dct(['A','B','C'], [1,0], rtn=True)
+    {'A': 1, 'B': 0, 'C': 0}
+    >>> dcz([1,0]).typ_to_dct(['A','B','C'], rtn=True)
+    {'A': 1, 'B': 0, 'C': 0}
+    >>> dcz([{'A':1},{'B':2}]).nfd(rtn=True)
+    {'A': 1, 'B': 2}
+    >>> dcz({'A':{'B':1,'C':2},'D':3}).nfd(rtn=True)
+    {'B': 1, 'C': 2, 'D': 3}
+    """
+    __slots__ = ('__seq', 'typ', 'len', 'kys', 'vls')
+    lst_typ_dcz = [
+        str,
+        stz,
+        list,
+        dict,
+        tuple,
+        typ_np_ndarray,
+        typ_pd_DataFrame,
+        typ_pd_Series,
+        typ_pd_Index,
+        typ_pd_RangeIndex,
+    ]   # lsz.seq's type
+
+    def __init__(self, seq=None, spr=True):
+        """
+        create a new list object from the given object.
+        :param seq: first, save target into dcz.seq
+        :param spr: let dcz = dcz.seq or not, default False
+        """
+        super().__init__()
+        self.__seq, self.typ, self.len, self.kys, self.vls = None, None, None, None, None
+        self.__init_rst(seq, spr)
+
+    def __init_rst(self, seq=None, spr=False):
+        """
+        private reset initiation.
+        :param seq: a list content in any type, None for []
+        :param spr: let dcz = dcz.seq or not, default False
+        :return: None
+        """
+        if self.seq is None:
+            self.seq = seq if seq is not None else {}
+        self.__attr_rst()
+        if spr:
+            self.spr_nit()
+
+    def __attr_rst(self):
+        """
+        reset attributes dcz.typ.
+        :return: None
+        """
+        self.typ = type(self.__seq)
+        self.len = len(self.__seq)
+        self.kys = list(self.__seq.keys()) if self.typ in [dict] else None
+        self.vls = list(self.__seq.values()) if self.typ in [dict] else None
+
+    def spr_nit(self, rtn=False):
+        """
+        super initiation. let dcz = dcz.seq.
+        :param rtn: return dcz or not, default False
+        :return: if rtn is True, return dcz
+        """
+        try:
+            self.clear()    # 由于直接super会导致dcz.seq拼接到原dcz之后，因此先调用dcz.clear()清空原dcz
+            super(dcz, self).__init__(self.__seq)
+        except (TypeError, ValueError):
+            print('info: %s cannot convert to list.' % (str(self.__seq)[:8]+'..'))
+        if rtn:
+            return self
+
+    @property
+    def seq(self):
+        """
+        @property get & set lsz.seq.
+        :return: dcz.seq
+        """
+        return self.__seq
+
+    @seq.setter
+    def seq(self, seq):
+        """
+        dcz.seq = seq.
+        :param seq: a sequence to import.
+        :return: None
+        """
+        if seq is None or type(seq) in self.lst_typ_dcz:
+            self.__seq = seq
+            self.__attr_rst()
+        else:
+            raise TypeError('seq\'s type %s is not available.' % type(seq))
+
+    def typ_to_dct(self, *args, spr=False, rtn=False):
+        """
+        alter dcz.seq's type from others to dict.
+        :param args: if needs other objects to merge, import here, len(args) in [1,2]
+        :param spr: let dcz = dcz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the final result
+        """
+        if self.seq and self.typ in [dict]:
+            pass
+        elif (self.seq and self.typ in [list, lsz]) or (not self.seq and [True for i in args if type(i) in [list]]):
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+            # 当dcz.seq为空时，从*args中依次取值
+            self.seq = args[-1] if not self.seq else self.seq           # dcz.seq为空则取末尾的args
+            self.seq = lsz(self.seq).cpy_tal(len(args[0]), rtn=True)    # dcz.seq填充至长度等同于args[0]即dict的keys
+            self.seq = pd_DataFrame([self.seq], columns=lst_clm).to_dict(orient='record')[0]
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def nfd(self, spr=False, rtn=False):
+        """
+        unfold dict cells inside a list or dict object.
+        :param spr: let dcz = dcz.seq or not, default False
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return the final result in dict format {A,B,..}
+        """
+        dct_tmp = {}
+        if self.typ in [list, lsz]:     # [{A:1},{B:2},...] -> {A:1,B:2}
+            for i_dct in self.seq:
+                if type(i_dct) is dict:
+                    dct_tmp.update(i_dct)
+        elif self.typ in [dict]:        # {A:{B:1,C:2},D:3,...} -> {B:1,C:2,D:3,...}
+            for i_dct in self.seq:
+                if type(self.seq[i_dct]) is dict:
+                    dct_tmp.update(self.seq[i_dct])
+                else:
+                    dct_tmp.update({i_dct: self.seq[i_dct]})
+        self.seq = dct_tmp
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+
+print('basic types\' alteration ready.')
