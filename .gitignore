@@ -13,5 +13,7 @@ build
 
 # My configurations:
 .idea/*
+.idea/misc.xml
+.idea/pyzohar.iml
 db.ini
 deploy_key_rsa
