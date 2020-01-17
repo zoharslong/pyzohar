@@ -89,252 +89,6 @@ class stz(str):
             return self.fmt
 
 
-class dtz(dt_datetime):
-    """
-    type datetime altered by zoharslong.
-    >>> dtz(15212421.1).typ_to_dtt(rtn=True)    # from any type to datetime
-    datetime.datetime(1970, 6, 26, 9, 40, 21)
-    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ('str', rtn=True)   # from datetime to any type
-    '1970-06-26'
-    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).shf(5, rtn=True)    # 5 days after 1970-06-26 in type datetime
-    datetime.datetime(1970, 7, 1, 9, 40, 21)
-    >>> dtz('2019m03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 March
-    datetime.datetime(2019, 3, 31, 0, 0)
-    >>> dtz('2019w03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 3th week
-    datetime.datetime(2019, 3, 31, 0, 0)
-    """
-    # __slots__ = ('__val', 'typ', 'len', 'fmt',)
-    lst_typ_dtz = [
-        str,
-        stz,
-        int,
-        float,
-        dt_datetime,
-        typ_dt_date,
-        typ_dt_time,
-        typ_pd_Timestamp,
-        typ_tm_structtime,
-    ]   # dtz.val's type
-
-    # def __new__(cls, *args):
-    #     return super().__new__(cls)
-
-    def __init__(self, year=1989, month=4, day=21, val=None):
-        """
-        initiating dtz.val, dtz.typ.
-        :param val: a datetime content in any type, None for datetime.datetime.now()
-        """
-        self.__val, self.typ, self.len, self.fmt = None, None, None, None
-        self.__init_rst(val)
-
-    def __init_rst(self, val=None):
-        """
-        private reset initiation.
-        :param val: a datetime content in any type, None for datetime.datetime.now()
-        :return: None
-        """
-        if self.val is None:
-            self.val = val if val is not None else dt_datetime.now()
-
-    def spr_nit(cls):
-        return
-        self.__new__(dtz, self.val.year, self.val.month, self.val.day)
-
-    @property
-    def val(self):
-        """
-        @property get & set dtz.val.
-        :return: dtz.val
-        """
-        return self.__val
-
-    @val.setter
-    def val(self, val):
-        """
-        dtz.val = val.
-        :param val: a value to import.
-        :return: None
-        """
-        if val is None or type(val) in self.lst_typ_dtz:
-            self.__val = val
-            self.__attr_rst()
-        else:
-            raise TypeError('info: val\'s type %s is not available.' % type(val))
-
-    def __attr_rst(self):
-        """
-        reset attributes dtz.typ, dtz.fmt.
-        :return: None
-        """
-        self.typ = type(self.__val)
-        self.len = len(self.__val) if self.typ in [str, stz] else None
-        self.fmt = stz(self.__val).add_fmt(rtn=True) if self.typ == str else None
-
-    # def __str__(self):
-    #     """
-    #     print(className).
-    #     :return: None
-    #     """
-    #     if type(self.__val) == typ_tm_structtime:
-    #         str_xpt = 'time.struct_time'+str(tuple(self.__val))
-    #     else:
-    #         str_xpt = self.__val
-    #     return '%s' % str_xpt
-    # __repr__ = __str__  # 调用类名的输出与print(className)相同
-
-    def typ_to_dtt(self, rtn=False):
-        """
-        alter other type to datetime.datetime type.
-        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
-        :param rtn: return the result or not, default False
-        :return: if rtn is True, return dtz.val
-        """
-        if self.typ in [dt_datetime]:
-            pass
-        elif self.typ in [typ_dt_date]:
-            self.val = dt_datetime.combine(self.val, typ_dt_time())
-        elif self.typ in [typ_pd_Timestamp]:
-            self.val = dt_datetime.combine(self.val.date(), self.val.time())
-        elif self.typ in [typ_tm_structtime]:
-            self.val = dt_datetime.strptime(tm_strftime('%Y-%m-%d %H:%M:%S', self.val), '%Y-%m-%d %H:%M:%S')
-        elif self.typ in [int, float]:
-            self.val = dt_datetime.fromtimestamp(int(str(self.val).rsplit('.')[0]))
-        elif self.typ in [str, stz]:
-            if [True for i in self.fmt if i in ['float', 'int']]:
-                self.val = dt_datetime.fromtimestamp(int(self.val.rsplit('.')[0]))
-            else:
-                self.val = dt_datetime.strptime(self.val, self.fmt[0])
-        else:
-            raise TypeError('type of value not in [dt_datetime, dt_date, tm_structtime, pd_Timestamp, int, float, str]')
-        if rtn:
-            return self.val
-
-    def dtt_to_typ(self, str_typ='str', str_fmt='%Y-%m-%d', *, rtn=False):
-        """
-        alter datetime.datetime type to other type.
-        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
-        :param str_typ: target type
-        :param str_fmt: if str_typ in ['str'],
-        :param rtn: return the result or not, default False
-        :return: if rtn is True, return self.val in type str_typ, format str_fmt
-        """
-        if self.typ not in [dt_datetime]:
-            self.typ_to_dtt()
-        if str_typ.lower() in ['datetime', 'dt_datetime', 'dt']:
-            pass
-        if str_typ.lower() in ['date', 'dt_date']:
-            self.val = self.val.date()
-        elif str_typ.lower() in ['pd_structtime', 'pd_timestamp']:
-            self.val = pd_to_datetime(dt_datetime.strftime(self.val, '%Y-%m-%d %H:%M:%S'), format='%Y-%m-%d %H:%M:%S')
-        elif str_typ.lower() in ['timetuple', 'structtime', 'tm_structtime']:
-            self.val = self.val.timetuple()
-        elif str_typ.lower() in ['float', 'flt', 'int']:
-            self.val = int(tm_mktime(self.val.timetuple()))
-        elif str_typ.lower() in ['string', 'str', 'stz']:
-            if str_fmt in ['%Y年%m月%d日']:
-                self.val = dt_datetime.strftime(self.val, '%Y{y}%m{m}%d{d}').format(y='年', m='月', d='日')
-            else:
-                self.val = dt_datetime.strftime(self.val, str_fmt)
-        else:
-            raise KeyError("str_typ needs ['str','int','float','datetime','pd_timestamp','tm_structtime']")
-        if rtn:
-            return self.val
-
-    def dtt_to_prd(self, str_kwd='w', rtn=False):
-        """
-        alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m'].
-        :param str_kwd: in ['w','m']
-        :param rtn: return or not
-        :return: result in format ['%Ym%m','%Yw%w']
-        """
-        if self.typ not in [dt_datetime]:
-            self.typ_to_dtt()
-        slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
-        slf_dmh = self.val.timetuple().tm_mon                   # 得到month
-        int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
-        self.val = "%s%s%s" % (str(slf_dwk[0]), str_kwd, str(int_kwd).zfill(2))
-        if rtn:
-            return self.val
-
-    def dwk_to_dtt(self, flt_dlt=1, rtn=False):
-        """
-        alter string in format '19w01' to a certain datetime in this period.
-        :param flt_dlt: in range(1,7) for '%Yw%w', range(-7,-1) also equals to range(1,7)
-        :param rtn: return the result or not
-        :return: if rtn is True, return
-        """
-        if [True for i in self.fmt if i in ['%Yw%w', '%yw%w']]:
-            int_dyr = int(self.val.rsplit('w')[0])
-            if int_dyr < 50:
-                int_dyr = int(int_dyr + 2000)
-            elif int_dyr < 100:
-                int_dyr = int(int_dyr + 1900)
-            int_dwk = int(self.val.rsplit('w')[1])
-            dtt_jan = typ_dt_date(int_dyr, 1, 4)
-            dtt_dlt = typ_dt_timedelta(dtt_jan.isoweekday() - 1)
-            bgn_dyr = dtt_jan - dtt_dlt
-            flt_dlt = 8 + flt_dlt if flt_dlt < 0 else flt_dlt
-            self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
-        else:
-            raise AttributeError('%s not in [\'%Yw%w\',\'%yw%w\']' % self.fmt)
-        if rtn:
-            return self.val
-
-    def dmh_to_dtt(self, flt_dlt=1, rtn=False):
-        """
-        alter string in format '19m01' to a certain datetime in this period.
-        :param flt_dlt: in range(1,28/31) for '%Ym%m', range(-31/-28,-1) also equals to range(1,28/31)
-        :param rtn: return the result or not
-        :return: if rtn is True, return
-        """
-        if [True for i in self.fmt if i in ['%Ym%m', '%ym%m']]:
-            int_dyr = int(self.val.rsplit('m')[0])
-            if int_dyr < 50:
-                int_dyr = int(int_dyr + 2000)
-            elif int_dyr < 100:
-                int_dyr = int(int_dyr + 1900)
-            int_dmh = int(self.val.rsplit('m')[1])
-            int_max = monthrange(int_dyr, int_dmh)[1]
-            if int_max - flt_dlt < 0:
-                raise KeyError('this month has only %s days' % str(int_max))
-            else:
-                int_day = flt_dlt if flt_dlt > 0 else int_max + 1 + flt_dlt
-                self.val = dt_datetime(int_dyr, int_dmh, int_day)
-        else:
-            raise AttributeError('%s not in [\'%Ym%m\',\'%ym%m\']' % self.fmt)
-        if rtn:
-            return self.val
-
-    def prd_to_dtt(self, flt_dlt=1, rtn=False):
-        """
-        alter period string in format ['%[Yy]w%w','%[Yy]m%m'] to datetime.datetime type.
-        :param flt_dlt: which day in the period to export, in range(1,7) for week and range(1,28-31) for month
-        :param rtn: return the result or not
-        :return: if rtn is True, return
-        """
-        if [True for i in self.fmt if i in ['%Yw%w', '%yw%w']]:
-            self.dwk_to_dtt(flt_dlt)
-        elif [True for i in self.fmt if i in ['%Ym%m', '%ym%m']]:
-            self.dmh_to_dtt(flt_dlt)
-        else:
-            raise AttributeError('%s is not in format [\'%Yw%w\',\'%yw%w\',\'%Ym%m\',\'%ym%m\']')
-        if rtn:
-            return self.val
-
-    def shf(self, flt_dlt=0, rtn=False):
-        """
-        shift days from dtz.val, type of dtz.val will be datetime.datetime.
-        :param flt_dlt: how many days to shift, delta in type float
-        :param rtn: return or not, default False
-        :return: if rtn is True, return the result
-        """
-        if self.typ not in [dt_datetime]:
-            self.typ_to_dtt()
-        self.val += typ_dt_timedelta(days=flt_dlt)
-        if rtn:
-            return self.val
-
-
 class lsz(list):
     """
     type list altered by zoharslong.
@@ -756,6 +510,245 @@ class dcz(dict):
             self.spr_nit()
         if rtn:
             return self.seq
+
+
+class dtz(object):
+    """
+    type datetime altered by zoharslong.
+    >>> dtz(15212421.1).typ_to_dtt(rtn=True)    # from any type to datetime
+    datetime.datetime(1970, 6, 26, 9, 40, 21)
+    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ('str', rtn=True)   # from datetime to any type
+    '1970-06-26'
+    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).shf(5, rtn=True)    # 5 days after 1970-06-26 in type datetime
+    datetime.datetime(1970, 7, 1, 9, 40, 21)
+    >>> dtz('2019m03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 March
+    datetime.datetime(2019, 3, 31, 0, 0)
+    >>> dtz('2019w03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 3th week
+    datetime.datetime(2019, 3, 31, 0, 0)
+    """
+    __slots__ = ('__val', 'typ', 'len', 'fmt',)
+    lst_typ_dtz = [
+        str,
+        stz,
+        int,
+        float,
+        dt_datetime,
+        typ_dt_date,
+        typ_dt_time,
+        typ_pd_Timestamp,
+        typ_tm_structtime,
+    ]   # dtz.val's type
+
+    def __init__(self, val=None):
+        """
+        initiating dtz.val, dtz.typ.
+        :param val: a datetime content in any type, None for datetime.datetime.now()
+        """
+        self.__val, self.typ, self.len, self.fmt = None, None, None, None
+        self.__init_rst(val)
+
+    def __init_rst(self, val=None):
+        """
+        private reset initiation.
+        :param val: a datetime content in any type, None for datetime.datetime.now()
+        :return: None
+        """
+        if self.val is None:
+            self.val = val if val is not None else dt_datetime.now()
+
+    @property
+    def val(self):
+        """
+        @property get & set dtz.val.
+        :return: dtz.val
+        """
+        return self.__val
+
+    @val.setter
+    def val(self, val):
+        """
+        dtz.val = val.
+        :param val: a value to import.
+        :return: None
+        """
+        if val is None or type(val) in self.lst_typ_dtz:
+            self.__val = val
+            self.__attr_rst()
+        else:
+            raise TypeError('info: val\'s type %s is not available.' % type(val))
+
+    def __attr_rst(self):
+        """
+        reset attributes dtz.typ, dtz.fmt.
+        :return: None
+        """
+        self.typ = type(self.__val)
+        self.len = len(self.__val) if self.typ in [str, stz] else None
+        self.fmt = stz(self.__val).add_fmt(rtn=True) if self.typ == str else None
+
+    def __str__(self):
+        """
+        print(className).
+        :return: None
+        """
+        if type(self.__val) == typ_tm_structtime:
+            str_xpt = 'time.struct_time'+str(tuple(self.__val))
+        else:
+            str_xpt = self.__val
+        return '%s' % str_xpt
+    __repr__ = __str__  # 调用类名的输出与print(className)相同
+
+    def typ_to_dtt(self, rtn=False):
+        """
+        alter other type to datetime.datetime type.
+        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return dtz.val
+        """
+        if self.typ in [dt_datetime]:
+            pass
+        elif self.typ in [typ_dt_date]:
+            self.val = dt_datetime.combine(self.val, typ_dt_time())
+        elif self.typ in [typ_pd_Timestamp]:
+            self.val = dt_datetime.combine(self.val.date(), self.val.time())
+        elif self.typ in [typ_tm_structtime]:
+            self.val = dt_datetime.strptime(tm_strftime('%Y-%m-%d %H:%M:%S', self.val), '%Y-%m-%d %H:%M:%S')
+        elif self.typ in [int, float]:
+            self.val = dt_datetime.fromtimestamp(int(str(self.val).rsplit('.')[0]))
+        elif self.typ in [str, stz]:
+            if [True for i in self.fmt if i in ['float', 'int']]:
+                self.val = dt_datetime.fromtimestamp(int(self.val.rsplit('.')[0]))
+            else:
+                self.val = dt_datetime.strptime(self.val, self.fmt[0])
+        else:
+            raise TypeError('type of value not in [dt_datetime, dt_date, tm_structtime, pd_Timestamp, int, float, str]')
+        if rtn:
+            return self.val
+
+    def dtt_to_typ(self, str_typ='str', str_fmt='%Y-%m-%d', *, rtn=False):
+        """
+        alter datetime.datetime type to other type.
+        fit for datetime.datetime, pd.Timestamp, tm.structtime, float, int and str.
+        :param str_typ: target type
+        :param str_fmt: if str_typ in ['str'],
+        :param rtn: return the result or not, default False
+        :return: if rtn is True, return self.val in type str_typ, format str_fmt
+        """
+        if self.typ not in [dt_datetime]:
+            self.typ_to_dtt()
+        if str_typ.lower() in ['datetime', 'dt_datetime', 'dt']:
+            pass
+        if str_typ.lower() in ['date', 'dt_date']:
+            self.val = self.val.date()
+        elif str_typ.lower() in ['pd_structtime', 'pd_timestamp']:
+            self.val = pd_to_datetime(dt_datetime.strftime(self.val, '%Y-%m-%d %H:%M:%S'), format='%Y-%m-%d %H:%M:%S')
+        elif str_typ.lower() in ['timetuple', 'structtime', 'tm_structtime']:
+            self.val = self.val.timetuple()
+        elif str_typ.lower() in ['float', 'flt', 'int']:
+            self.val = int(tm_mktime(self.val.timetuple()))
+        elif str_typ.lower() in ['string', 'str', 'stz']:
+            if str_fmt in ['%Y年%m月%d日']:
+                self.val = dt_datetime.strftime(self.val, '%Y{y}%m{m}%d{d}').format(y='年', m='月', d='日')
+            else:
+                self.val = dt_datetime.strftime(self.val, str_fmt)
+        else:
+            raise KeyError("str_typ needs ['str','int','float','datetime','pd_timestamp','tm_structtime']")
+        if rtn:
+            return self.val
+
+    def dtt_to_prd(self, str_kwd='w', rtn=False):
+        """
+        alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m'].
+        :param str_kwd: in ['w','m']
+        :param rtn: return or not
+        :return: result in format ['%Ym%m','%Yw%w']
+        """
+        if self.typ not in [dt_datetime]:
+            self.typ_to_dtt()
+        slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
+        slf_dmh = self.val.timetuple().tm_mon                   # 得到month
+        int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
+        self.val = "%s%s%s" % (str(slf_dwk[0]), str_kwd, str(int_kwd).zfill(2))
+        if rtn:
+            return self.val
+
+    def dwk_to_dtt(self, flt_dlt=1, rtn=False):
+        """
+        alter string in format '19w01' to a certain datetime in this period.
+        :param flt_dlt: in range(1,7) for '%Yw%w', range(-7,-1) also equals to range(1,7)
+        :param rtn: return the result or not
+        :return: if rtn is True, return
+        """
+        if [True for i in self.fmt if i in ['%Yw%w', '%yw%w']]:
+            int_dyr = int(self.val.rsplit('w')[0])
+            if int_dyr < 50:
+                int_dyr = int(int_dyr + 2000)
+            elif int_dyr < 100:
+                int_dyr = int(int_dyr + 1900)
+            int_dwk = int(self.val.rsplit('w')[1])
+            dtt_jan = typ_dt_date(int_dyr, 1, 4)
+            dtt_dlt = typ_dt_timedelta(dtt_jan.isoweekday() - 1)
+            bgn_dyr = dtt_jan - dtt_dlt
+            flt_dlt = 8 + flt_dlt if flt_dlt < 0 else flt_dlt
+            self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
+        else:
+            raise AttributeError('%s not in [\'%Yw%w\',\'%yw%w\']' % self.fmt)
+        if rtn:
+            return self.val
+
+    def dmh_to_dtt(self, flt_dlt=1, rtn=False):
+        """
+        alter string in format '19m01' to a certain datetime in this period.
+        :param flt_dlt: in range(1,28/31) for '%Ym%m', range(-31/-28,-1) also equals to range(1,28/31)
+        :param rtn: return the result or not
+        :return: if rtn is True, return
+        """
+        if [True for i in self.fmt if i in ['%Ym%m', '%ym%m']]:
+            int_dyr = int(self.val.rsplit('m')[0])
+            if int_dyr < 50:
+                int_dyr = int(int_dyr + 2000)
+            elif int_dyr < 100:
+                int_dyr = int(int_dyr + 1900)
+            int_dmh = int(self.val.rsplit('m')[1])
+            int_max = monthrange(int_dyr, int_dmh)[1]
+            if int_max - flt_dlt < 0:
+                raise KeyError('this month has only %s days' % str(int_max))
+            else:
+                int_day = flt_dlt if flt_dlt > 0 else int_max + 1 + flt_dlt
+                self.val = dt_datetime(int_dyr, int_dmh, int_day)
+        else:
+            raise AttributeError('%s not in [\'%Ym%m\',\'%ym%m\']' % self.fmt)
+        if rtn:
+            return self.val
+
+    def prd_to_dtt(self, flt_dlt=1, rtn=False):
+        """
+        alter period string in format ['%[Yy]w%w','%[Yy]m%m'] to datetime.datetime type.
+        :param flt_dlt: which day in the period to export, in range(1,7) for week and range(1,28-31) for month
+        :param rtn: return the result or not
+        :return: if rtn is True, return
+        """
+        if [True for i in self.fmt if i in ['%Yw%w', '%yw%w']]:
+            self.dwk_to_dtt(flt_dlt)
+        elif [True for i in self.fmt if i in ['%Ym%m', '%ym%m']]:
+            self.dmh_to_dtt(flt_dlt)
+        else:
+            raise AttributeError('%s is not in format [\'%Yw%w\',\'%yw%w\',\'%Ym%m\',\'%ym%m\']')
+        if rtn:
+            return self.val
+
+    def shf(self, flt_dlt=0, rtn=False):
+        """
+        shift days from dtz.val, type of dtz.val will be datetime.datetime.
+        :param flt_dlt: how many days to shift, delta in type float
+        :param rtn: return or not, default False
+        :return: if rtn is True, return the result
+        """
+        if self.typ not in [dt_datetime]:
+            self.typ_to_dtt()
+        self.val += typ_dt_timedelta(days=flt_dlt)
+        if rtn:
+            return self.val
 
 
 print('basic types\' alteration ready.')

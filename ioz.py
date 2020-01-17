@@ -41,7 +41,7 @@ class ioBsc(object):
     def __init__(self, dts=None, lcn=None):
         # all the i/o operations have the same attributes for locate target data: location and collection
         self.__dts, self.typ, self.len = None, None, None   # 接受数据
-        self.__iot, self.__lcn = None, None   # 连接信息
+        self.__lcn, self.iot = None, None   # 连接信息
         self.__init_rst(dts, lcn)
 
     def __init_rst(self, dts=None, lcn=None):
@@ -56,6 +56,7 @@ class ioBsc(object):
     def __attr_rst(self, str_typ=None):
         """
         reset attributes lsz.typ.
+        :param str_typ: type of attributes resets, in ['dts','lcn'] for data set reset and location reset
         :return: None
         """
         if str_typ in ['dts', None]:
@@ -66,6 +67,14 @@ class ioBsc(object):
                 raise TypeError('info: type %s is not available.' % self.typ)
         if str_typ in ['lcn', None]:
             pass
+
+    def __str__(self):
+        """
+        print(io path).
+        :return: None
+        """
+        return 'io: %s' % str(self.lcn)[1:-1]
+    __repr__ = __str__  # 调用类名的输出与print(className)相同
 
     @property
     def dts(self):
@@ -98,7 +107,7 @@ class ioBsc(object):
             self.__lcn = lcn
             self.__attr_rst('lcn')
         else:
-            raise TypeError('info: dts\'s type %s is not available.' % type(lcn))
+            raise TypeError('info: lcn\'s type %s is not available.' % type(lcn))
 
 
 class lczMixIn(ioBsc):
@@ -108,8 +117,13 @@ class lczMixIn(ioBsc):
     def __init__(self, dts=None, lcn=None):
         super(lczMixIn, self).__init__(dts, lcn)
 
-    def mpt_csv(self):
-        pass
+    def mpt_csv(self, str_sep=None, *, rtn=False):
+        if str_sep is None:
+            self.dts = read_csv(path.join(*self.lcn))
+        else:
+            self.dts = read_csv(path.join(*self.lcn), sep=str_sep)
+        if rtn:
+            return self.dts
 
     def mpt(self, rtn=False):
         pass
