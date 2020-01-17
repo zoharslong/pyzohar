@@ -89,7 +89,7 @@ class stz(str):
             return self.fmt
 
 
-class dtz(object):
+class dtz(dt_datetime):
     """
     type datetime altered by zoharslong.
     >>> dtz(15212421.1).typ_to_dtt(rtn=True)    # from any type to datetime
@@ -103,7 +103,7 @@ class dtz(object):
     >>> dtz('2019w03').prd_to_dtt(-1, rtn=True) # get the last day in 2019 3th week
     datetime.datetime(2019, 3, 31, 0, 0)
     """
-    __slots__ = ('__val', 'typ', 'len', 'fmt',)
+    # __slots__ = ('__val', 'typ', 'len', 'fmt',)
     lst_typ_dtz = [
         str,
         stz,
@@ -116,7 +116,10 @@ class dtz(object):
         typ_tm_structtime,
     ]   # dtz.val's type
 
-    def __init__(self, val=None):
+    # def __new__(cls, *args):
+    #     return super().__new__(cls)
+
+    def __init__(self, year=1989, month=4, day=21, val=None):
         """
         initiating dtz.val, dtz.typ.
         :param val: a datetime content in any type, None for datetime.datetime.now()
@@ -132,6 +135,10 @@ class dtz(object):
         """
         if self.val is None:
             self.val = val if val is not None else dt_datetime.now()
+
+    def spr_nit(cls):
+        return
+        self.__new__(dtz, self.val.year, self.val.month, self.val.day)
 
     @property
     def val(self):
@@ -163,17 +170,17 @@ class dtz(object):
         self.len = len(self.__val) if self.typ in [str, stz] else None
         self.fmt = stz(self.__val).add_fmt(rtn=True) if self.typ == str else None
 
-    def __str__(self):
-        """
-        print(className).
-        :return: None
-        """
-        if type(self.__val) == typ_tm_structtime:
-            str_xpt = 'time.struct_time'+str(tuple(self.__val))
-        else:
-            str_xpt = self.__val
-        return '%s' % str_xpt
-    __repr__ = __str__  # 调用类名的输出与print(className)相同
+    # def __str__(self):
+    #     """
+    #     print(className).
+    #     :return: None
+    #     """
+    #     if type(self.__val) == typ_tm_structtime:
+    #         str_xpt = 'time.struct_time'+str(tuple(self.__val))
+    #     else:
+    #         str_xpt = self.__val
+    #     return '%s' % str_xpt
+    # __repr__ = __str__  # 调用类名的输出与print(className)相同
 
     def typ_to_dtt(self, rtn=False):
         """
