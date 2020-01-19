@@ -111,6 +111,8 @@ class lsz(list):
     lst_typ_lsz = [
         str,
         stz,
+        int,
+        float,
         list,
         dict,
         tuple,
@@ -195,8 +197,11 @@ class lsz(list):
         :return: None
         """
         self.typ = type(self.__seq)
-        self.len = len(self.__seq)
-        self.edg_of_len()
+        try:
+            self.len = len(self.__seq)
+            self.edg_of_len()
+        except TypeError:
+            print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
 
     def typ_to_lst(self, *, spr=False, rtn=False, prm='record'):
         """
