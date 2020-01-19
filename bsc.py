@@ -751,4 +751,4 @@ class dtz(object):
             return self.val
 
 
-print('basic types\' alteration ready.')
+print('info: basic types\' alteration ready.')
