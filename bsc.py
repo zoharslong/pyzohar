@@ -394,6 +394,8 @@ class dcz(dict):
     lst_typ_dcz = [
         str,
         stz,
+        int,
+        float,
         list,
         dict,
         tuple,
@@ -467,7 +469,10 @@ class dcz(dict):
         :return: None
         """
         self.typ = type(self.__seq)
-        self.len = len(self.__seq)
+        try:
+            self.len = len(self.__seq)
+        except TypeError:
+            print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
         self.kys = list(self.__seq.keys()) if self.typ in [dict] else None
         self.vls = list(self.__seq.values()) if self.typ in [dict] else None
 

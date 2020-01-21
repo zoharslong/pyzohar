@@ -20,6 +20,7 @@ from bsc import stz, lsz, dcz
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
+from pymysql import connect, IntegrityError
 
 
 class ioBsc(pd_DataFrame):
@@ -133,8 +134,15 @@ class ioBsc(pd_DataFrame):
         """
         self.lcn['mng'] = "mongodb://localhost:27017" if not self.lcn['mng'] else self.lcn['mng']
         self._myHst = MongoClient(host=self.lcn['mng'])
-        self._myDbs = self._myHst[self.lcn['dbs']] if self.lcn['dbs'] is not None else None
-        self._myCln = self._myDbs[self.lcn['cln']] if self.lcn['cln'] is not None else None
+        self._myDbs = self._myHst[self.lcn['dbs']] if not self.lcn['dbs'] else None
+        self._myCln = self._myDbs[self.lcn['cln']] if not self.lcn['cln'] else None
+
+    def sql_nit(self):
+        self.lcn['sql'] = {'hst': '172.16.0.13', 'prt': 3306, 'usr':None, 'psw':None} if \
+            not self.lcn['sql'] else self.lcn['sql']
+        self._myHst = self.lcn['sql'] if not self.lcn['sql'] else None
+        self._myDbs = self.lcn['dbs'] if not self.lcn['dbs'] else None
+        self._myTbl = self.lcn['tbl'] if not self.lcn['tbl'] else None
 
     def dts_nit(self, ndx_rst=True, ndx_lvl=None):
         """
@@ -143,22 +151,23 @@ class ioBsc(pd_DataFrame):
         :param ndx_lvl: if reset index, set the level of index
         :return: None
         """
+        lst_xcp = []
         try:
             self.typ = type(self.__dts)
         except TypeError:
-            print('info: %s is not available for type().' % (str(self.__dts)[:8] + '..'))
+            lst_xcp.append('type')
         try:
             self.len = self.dts.__len__()
         except AttributeError:
-            print('info: %s is not available for __len__().' % (str(self.__dts)[:8] + '..'))
+            lst_xcp.append('len')
         try:
             self.kys = self.dts.keys()
-        except AttributeError:
-            print('info: %s is not available for keys().' % (str(self.__dts)[:8] + '..'))
+        except (AttributeError, TypeError):
+            lst_xcp.append('keys')
         try:
             self.vls = self.dts.values()
-        except AttributeError:
-            print('info: %s is not available for values().' % (str(self.__dts)[:8] + '..'))
+        except (AttributeError, TypeError):
+            lst_xcp.append('values')
         self.clm = self.dts.columns if self.typ in [typ_pd_DataFrame] else self.clm
         self.hdr = self.dts.head() if self.typ in [typ_pd_DataFrame] else self.hdr
         self.tal = self.dts.tail() if self.typ in [typ_pd_DataFrame] else self.tal
@@ -166,21 +175,23 @@ class ioBsc(pd_DataFrame):
             if ndx_rst:
                 self.dts.reset_index(drop=True, inplace=True, level=ndx_lvl)
         except AttributeError:
-            print('info: %s is not available for reset_index().' % (str(self.__dts)[:8] + '..'))
+            lst_xcp.append('resetIndex')
+        if not lst_xcp:
+            print('info: %s is not available for %s.' % (str(lst_xcp), str(self.__dts)[:8] + '..'))
 
     def lcn_nit(self):
         """
-        location initiate, let self.iot in ['lcz','mnz','sqz','apz'] for [local, mongodb, sql, api].
+        location initiate, let self.iot in ['lcl','mng','sql','api'] for [local, mongodb, sql, api].
         :return: None
         """
         if [True for i in self.lcn.keys() if i in ['fld', 'fls']] == [True, True]:
-            self.iot = 'lcz'
-        elif [True for i in self.lcn.keys() if i in ['sql', 'dbs', 'tbl']] == [True, True, True]:
-            self.iot = 'sqz'
+            self.iot = 'lcl'
+        elif [True for i in self.lcn.keys() if i in ['sql', 'dbs']] == [True, True]:
+            self.iot = 'sql'
         elif [True for i in self.lcn.keys() if i in ['mng', 'dbs', 'cln']] == [True, True, True]:
-            self.iot = 'mnz'
+            self.iot = 'mng'
         elif [True for i in self.lcn.keys() if i in ['url', 'prm']] == [True, True]:
-            self.iot = 'apz'
+            self.iot = 'api'
         else:
             raise KeyError('stop: keys in %s is not available.' % self.lcn)
 
@@ -196,6 +207,8 @@ class ioBsc(pd_DataFrame):
             self.lcn_nit()
             if self.iot in ['mng', 'mnz']:  # for special cases, reset some attributes
                 self.mng_nit()
+            elif self.iot in ['sql','sqz']:
+                self.sql_nit()
 
     def typ_to_dtf(self, clm=None, *, spr=False, rtn=False):
         if self.len == 0 or not self.dts:
@@ -234,14 +247,14 @@ class ioBsc(pd_DataFrame):
             return self.dts
 
 
-class lczMixin(ioBsc):
+class lclMixin(ioBsc):
     """
     local files input and output operations.
     lcn format in {'fld':'','fls':['','',...]}.
-    >>> lczMixin(lcn={'fld':'D:/','fls':['fgr.xlsx','fgr.xlsx']}).lcz_mpt(rtn=True) # 从指定文件夹位置导入文件到内存
+    >>> lclMixin(lcn={'fld':'D:/','fls':['fgr.xlsx','fgr.xlsx']}).lcl_mpt(rtn=True) # 从指定文件夹位置导入文件到内存
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
-        super(lczMixin, self).__init__(dts, lcn, spr=spr)
+        super(lclMixin, self).__init__(dts, lcn, spr=spr)
 
     def mpt_csv(self, fld=None, fls=None, sep=None, *, spr=False, rtn=False):
         fld = self.lcn['fld'] if fld is None else fld
@@ -267,7 +280,7 @@ class lczMixin(ioBsc):
     def mpt_txt(self, fld=None, fls=None, *, spr=False, rtn=False):
         pass
 
-    def lcz_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
+    def lcl_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
             self.lcn['fls'] = [self.lcn['fls']]
         dtf_mrg = pd_DataFrame() if not self.dts else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
@@ -309,7 +322,7 @@ class lczMixin(ioBsc):
             prc_txt_writer.close()
             print("info: success input dts to txt %s\n" % str(self.lcn.values()))
 
-    def lcz_xpt(self, *, typ='w', sep=2, cvr=True):
+    def lcl_xpt(self, *, typ='w', sep=2, cvr=True):
         if self.lcn['fls'].rsplit('.')[1] in ['xlsx']:
             self.dts.to_excel(path.join(*self.lcn.values()))
         elif self.lcn['fls'].rsplit('.')[1] in ['csv']:
@@ -326,11 +339,13 @@ class mngMixin(ioBsc):
         super(mngMixin, self).__init__(dts, lcn, spr=spr)
         self._mpt_id = None
 
-    def mng_nfo(self, typ=None, *, prm=None):
+    def mng_nfo(self, typ=None, *, prm=None, dct_qry=None, lst_clm=None):
         """
         export mongodb connection information.
-        :param typ: which information is needed, in ['dbs','cln','clm','dcm']
+        :param typ: which information is needed, in ['dbs','cln','clm','dcm','vls','max','min']
         :param prm: if typ is 'dcm', insert a certain column name for all the unique values in this column
+        :param dct_qry: only referred when typ in ['vls','max','min'] for documents choosing
+        :param lst_clm: only referred when typ in ['vls','max','min'] for documents choosing
         :return: a list of target values
         """
         if typ in ['dbs', 'database']:
@@ -341,10 +356,18 @@ class mngMixin(ioBsc):
             return list(self._myCln.find_one().keys())
         elif typ in ['dcm', 'document', 'documents']:
             return self._myCln.distinct(prm)
+        elif typ in ['vls', 'values', 'max', 'min']:
+            flt_typ = -1 if typ in ['max'] else 1
+            dct_qry = {} if not dct_qry else dct_qry
+            dct_clm = dcz().typ_to_dct(lst_clm, 1, rtn=True) if lst_clm else None
+            mtx_stt = self._myCln.find(dct_qry, dct_clm).sort([(prm, flt_typ)]).limit(100)
+            lst_xpt = []
+            for dct_xpt in mtx_stt:
+                if dct_xpt not in lst_xpt:
+                    lst_xpt.extend([dct_xpt])
+            return lst_xpt[0][prm]
         else:
-            return [self._myHst.list_database_names(),
-                    self._myDbs.list_collection_names(),
-                    list(self._myCln.find_one().keys())]
+            return [self._myDbs.name, self._myCln.name, list(self._myCln.find_one().keys())]
 
     def crt_ndx(self, lst_ndx, unq=False, drp=True, srt=1):
         """
@@ -387,7 +410,17 @@ class mngMixin(ioBsc):
         if prc_update_many.raw_result['updatedExisting']:
             return prc_update_many.raw_result
 
-    def mpt_cln_dcm(self, dts_mpt, lst_ndx=None, cvr=True, rtn=False):
+    def mng_mpt(self, dct_qry=None, lst_clm=None, *, spr=False, rtn=False):
+        dct_qry = {} if not dct_qry else dct_qry
+        dct_clm = dcz().typ_to_dct(lst_clm, 1, rtn=True) if lst_clm else None
+        prc_find = self._myCln.find(dct_qry, dct_clm)
+        self.dts = [dct_xpt for dct_xpt in prc_find]
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def xpt_cln_dcm(self, dts_mpt, lst_ndx=None, cvr=True, rtn=False):
         """
         向集合中更新一行pd.Series，若lst_clm_ndx重复则可以选择是否覆盖
         :param dts_mpt: 一行数据，进入集合后视为一个文档，可选类型为[pd.Series, dict]
@@ -396,6 +429,7 @@ class mngMixin(ioBsc):
         :param rtn: 返回输入的情况
         :return: None
         """
+        self._mpt_id = [] if not self._mpt_id else self._mpt_id     # 为后续记录输入文档的id做准备
         if type(dts_mpt) == typ_pd_Series:
             lst_ndx = dts_mpt.index.to_list() if lst_ndx is None else lst_ndx
             dct_mpt = dts_mpt.to_dict()
@@ -407,17 +441,53 @@ class mngMixin(ioBsc):
         n, c, d = 0, 0, 0
         dct_ndx = {i: dct_mpt[i] for i in lst_ndx}  # 构造与索引同格式的用于核实是否已存在于库中的列字典
         try:
-            self._myCln.insert_one(dct_mpt)
+            prc_insert = self._myCln.insert_one(dct_mpt)
+            self._mpt_id.append(prc_insert.inserted_id)
             n += 1
         except DuplicateKeyError:
             dct_mpt.pop('_id')
             if cvr and len(dct_mpt) > 0:
-                self.myCln.update_one(dct_ndx, {'$set': dct_mpt})
+                self._myCln.update_one(dct_ndx, {'$set': dct_mpt})
                 c += 1
             else:
                 d += 1
         if rtn:
             return n, c, d
+
+    def xpt_cln_dtf(self, lst_ndx=None, cvr=True):
+        """
+        逐行更新，保持集合中lst_ndx唯一
+        :param lst_ndx: 在此集合中选定为索引且unique=True的列名
+        :param cvr: 当索引重复时是否用dts_mpt覆盖集合内的行，默认True
+        :return: None
+        """
+        nt, ct, dt = 0, 0, 0
+        for i in range(self.len):
+            n, c, d = self.xpt_cln_dcm(self.dts.loc[i, :], lst_ndx, cvr, True)
+            nt += n
+            ct += c
+            dt += d
+        print('info: %i inserted, %i updated, %i dropped.\n' % (nt, ct, dt))
+
+    def mng_xpt(self, lst_ndx=None, cvr=True, *, dtz_nit=None, dtz_bgn=None):
+        """import from dataframe to collections
+        根据库是否存在, 进行有选择性的导入策略,全部导入或更新导入
+        :param lst_ndx: 为新建的集合创建唯一索引组
+        :param cvr: 覆盖或是舍弃, default cover, True
+        :param dtz_nit: 初始化的窗口起点
+        :param dtz_bgn: 本次操作所选择的时间窗起点，当此起点与初始化窗口起点相同时，采取创建策略
+        :return: None
+        """
+        print('*****', self._myDbs.name, '.', self._myCln.name, '*****')
+        # estimated_document_count/count_documents instead count
+        if dtz_bgn == dtz_nit and self._myCln.estimated_document_count() == 0:
+            print(1)
+            self.xpt_cln_dtf()
+            if lst_ndx is not None:
+                self.crt_ndx(lst_ndx, True)
+        else:
+            print(2)
+            self.xpt_cln_dtf(lst_ndx, cvr)
 
 
 class sqlMixin(ioBsc):
@@ -427,6 +497,58 @@ class sqlMixin(ioBsc):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(sqlMixin, self).__init__(dts, lcn, spr=spr)
 
+    def sql_run(self, str_sql=None, lst_kys=None, *, spr=False, rtn=False):
+        """
+        tencent cloud mysql operation
+        # create
+        str_clm = 'estatename CHAR(36) PRIMARY KEY, ndx TINYINT NOT NULL'
+        sql_crt = "CREATE TABLE %s(%s)ENGINE=innodb DEFAULT CHARSET=utf8;"%('tb_spd_bdu_adv_kwd',str_clm)
+        # alter - add multi primary key
+        sql_ltr = 'ALTER TABLE %s ADD PRIMARY KEY(do_date, estatename, _cty)'%('tb_spd_bdu_adv')
+        # insert
+        sql_nst = 'insert into %s(%s) values(%s)'%('tb_spd_bdu_adv_kwd','estatename, ndx','"云", "5"')
+        # update
+        sql_pdt = 'update %s set %s = %s where %s = %s' %('tb_spd_bdu_adv_kwd','estatename','"桑泰龙樾"','estatename','"桑泰龙樾"')
+        # delete
+        sql_dlt = 'delete from %s where %s=%s'%('tb_spd_bdu_adv_kwd','estatename','"云"')
+        # select
+        sql_slt = 'select * from %s'%('tb_spd_bdu_adv_kwd')
+        # drop
+        sql_drp = 'DROP TABLE %s'%('tb_spd_adv_bdu_kwd')
+        # show tables' name in database
+        >>> "SELECT table_name FROM information_schema.tables WHERE table_schema='%s'" % self.lcn['dbs']
+        :param str_sql: sql sentences
+        :param lst_kys: the lst_dts in crs.execute(str_sql, lst_dts) for %s without '"' in str_sql
+        :param spr: let ioz = ioz.dts or not, default False
+        :param rtn: return the result or not, default False
+        :return: the target dataset in type DataFrame or None
+        """
+        cnn = connect(host=self.lcn['sql']['hst'], port=self.lcn['sql']['prt'],
+                      user=self.lcn['sql']['usr'], password=self.lcn['sql']['psw'],
+                      database=self.lcn['dbs'], charset="utf8")
+        crs = cnn.cursor()
+        try:
+            crs.execute(str_sql, lst_kys)
+            if str_sql[:6].lower() in ['select']:
+                dts = crs.fetchall()    # values in type tuple
+                clm = crs.description   # columns information
+                self.dts = pd_DataFrame(list(dts), columns=[i_clm[0] for i_clm in list(clm)]) if dts else self.dts
+            elif str_sql[:6].lower() in ['insert', 'update', 'delete']:
+                cnn.commit()
+            else:
+                raise KeyError('stop: the sentence of sql needs [select, insert, update, delete]')
+            if spr:
+                self.spr_nit()
+            if rtn:
+                return self.dts
+        except IntegrityError:
+            return 'stop: pymysql.IntegrityError'
+        except ():
+            return 'stop: unknown error.'
+        finally:
+            crs.close()
+            cnn.close()
+
 
 class apiMixin(ioBsc):
     """
@@ -435,8 +557,18 @@ class apiMixin(ioBsc):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
+    def api_run(self):
+        mdl_rqt = post(str_url, data=dct_dta, headers=dct_hdr, timeout=60)
+        mdl_rqt.encoding = "utf-8"
+        try:
+            dct_rqt = loads(mdl_rqt.text)
+            return dct_rqt
+        except ValueError:
+            if bln_print:
+                print(mdl_rqt.text[0:100])
+            raise KeyError("cannot load data")
 
-class ioz(mngMixin, sqlMixin, apiMixin, lczMixin):
+class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):
 
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(ioz, self).__init__(dts, lcn, spr=spr)
