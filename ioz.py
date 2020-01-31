@@ -50,7 +50,8 @@ class ioBsc(pd_DataFrame):
         self.len, self.clm, self.hdr, self.tal = None, None, None, None
         self.kys, self.vls = None, None
         self.__lcn, self.iot = None, None   # 连接信息
-        self._myHst, self._myDbs, self._myCln, self._myTbl = None, None, None, None
+        self._mySql, self._mySdb, self._myTbl = None, None, None
+        self._myMng, self._myMdb, self._myCln = None, None, None
         self.__init_rst(dts, lcn, spr=spr)
 
     def __init_rst(self, dts=None, lcn=None, *, spr=False):
@@ -129,19 +130,19 @@ class ioBsc(pd_DataFrame):
 
     def mng_nit(self):
         """
-        if self.io type in mongodb, reset mongo attributes _myHst, _myDbs, _myCln.
+        if self.io type in mongodb, reset mongo attributes _myMng, _mySdb, _myCln.
         :return: None
         """
         self.lcn['mng'] = "mongodb://localhost:27017" if not self.lcn['mng'] else self.lcn['mng']
-        self._myHst = MongoClient(host=self.lcn['mng'])
-        self._myDbs = self._myHst[self.lcn['dbs']] if not self.lcn['dbs'] else None
-        self._myCln = self._myDbs[self.lcn['cln']] if not self.lcn['cln'] else None
+        self._myMng = MongoClient(host=self.lcn['mng'])
+        self._myMdb = self._myMng[self.lcn['mdb']] if not self.lcn['mdb'] else None
+        self._myCln = self._myMdb[self.lcn['cln']] if not self.lcn['cln'] else None
 
     def sql_nit(self):
-        self.lcn['sql'] = {'hst': '172.16.0.13', 'prt': 3306, 'usr':None, 'psw':None} if \
+        self.lcn['sql'] = {'hst': '172.16.0.13', 'prt': 3306, 'usr': None, 'psw': None} if \
             not self.lcn['sql'] else self.lcn['sql']
-        self._myHst = self.lcn['sql'] if not self.lcn['sql'] else None
-        self._myDbs = self.lcn['dbs'] if not self.lcn['dbs'] else None
+        self._mySql = self.lcn['sql'] if not self.lcn['sql'] else None
+        self._mySdb = self.lcn['sdb'] if not self.lcn['sdb'] else None
         self._myTbl = self.lcn['tbl'] if not self.lcn['tbl'] else None
 
     def dts_nit(self, ndx_rst=True, ndx_lvl=None):
@@ -184,14 +185,15 @@ class ioBsc(pd_DataFrame):
         location initiate, let self.iot in ['lcl','mng','sql','api'] for [local, mongodb, sql, api].
         :return: None
         """
+        self.iot = []
         if [True for i in self.lcn.keys() if i in ['fld', 'fls']] == [True, True]:
-            self.iot = 'lcl'
-        elif [True for i in self.lcn.keys() if i in ['sql', 'dbs']] == [True, True]:
-            self.iot = 'sql'
-        elif [True for i in self.lcn.keys() if i in ['mng', 'dbs', 'cln']] == [True, True, True]:
-            self.iot = 'mng'
+            self.iot.append('lcl')
+        elif [True for i in self.lcn.keys() if i in ['sql', 'sdb']] == [True, True]:
+            self.iot.append('sql')
+        elif [True for i in self.lcn.keys() if i in ['mng', 'mdb', 'cln']] == [True, True, True]:
+            self.iot.append('mng')
         elif [True for i in self.lcn.keys() if i in ['url']] == [True]:
-            self.iot = 'api'
+            self.iot.append('api')
         else:
             raise KeyError('stop: keys in %s is not available.' % self.lcn)
 
@@ -205,9 +207,9 @@ class ioBsc(pd_DataFrame):
             self.dts_nit(ndx_rst, ndx_lvl)
         if typ in ['lcn', None]:
             self.lcn_nit()
-            if self.iot in ['mng', 'mnz']:  # for special cases, reset some attributes
+            if [True for i in self.iot if i in ['mng', 'mnz']]:  # for special cases, reset some attributes
                 self.mng_nit()
-            elif self.iot in ['sql','sqz']:
+            if [True for i in self.iot if i in ['sql','sqz']]:
                 self.sql_nit()
 
     def typ_to_dtf(self, clm=None, *, spr=False, rtn=False):
@@ -348,10 +350,10 @@ class mngMixin(ioBsc):
         :param lst_clm: only referred when typ in ['vls','max','min'] for documents choosing
         :return: a list of target values
         """
-        if typ in ['dbs', 'database']:
-            return self._myHst.list_database_names()
+        if typ in ['dbs', 'database', 'mdb', 'mongodatabase']:
+            return self._myMng.list_database_names()
         elif typ in ['cln', 'collection']:
-            return self._myDbs.list_collection_names()
+            return self._myMdb.list_collection_names()
         elif typ in ['clm', 'column', 'columns']:
             return list(self._myCln.find_one().keys())
         elif typ in ['dcm', 'document', 'documents']:
@@ -367,7 +369,7 @@ class mngMixin(ioBsc):
                     lst_xpt.extend([dct_xpt])
             return lst_xpt[0][prm]
         else:
-            return [self._myDbs.name, self._myCln.name, list(self._myCln.find_one().keys())]
+            return [self._myMdb.name, self._myCln.name, list(self._myCln.find_one().keys())]
 
     def crt_ndx(self, lst_ndx, unq=False, drp=True, srt=1):
         """
@@ -478,7 +480,7 @@ class mngMixin(ioBsc):
         :param dtz_bgn: 本次操作所选择的时间窗起点，当此起点与初始化窗口起点相同时，采取创建策略
         :return: None
         """
-        print('*****', self._myDbs.name, '.', self._myCln.name, '*****')
+        print('*****', self._myMdb.name, '.', self._myCln.name, '*****')
         # estimated_document_count/count_documents instead count
         if dtz_bgn == dtz_nit and self._myCln.estimated_document_count() == 0:
             print(1)
@@ -516,7 +518,7 @@ class sqlMixin(ioBsc):
         # drop
         sql_drp = 'DROP TABLE %s'%('tb_spd_adv_bdu_kwd')
         # show tables' name in database
-        >>> "SELECT table_name FROM information_schema.tables WHERE table_schema='%s'" % self.lcn['dbs']
+        >>> "SELECT table_name FROM information_schema.tables WHERE table_schema='%s'" % self.lcn['sdb']
         :param str_sql: sql sentences
         :param lst_kys: the lst_dts in crs.execute(str_sql, lst_dts) for %s without '"' in str_sql
         :param spr: let ioz = ioz.dts or not, default False
@@ -525,7 +527,7 @@ class sqlMixin(ioBsc):
         """
         cnn = connect(host=self.lcn['sql']['hst'], port=self.lcn['sql']['prt'],
                       user=self.lcn['sql']['usr'], password=self.lcn['sql']['psw'],
-                      database=self.lcn['dbs'], charset="utf8")
+                      database=self.lcn['sdb'], charset="utf8")
         crs = cnn.cursor()
         try:
             crs.execute(str_sql, lst_kys)
@@ -558,15 +560,16 @@ class apiMixin(ioBsc):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
     def api_run(self):
-        mdl_rqt = post(str_url, data=dct_dta, headers=dct_hdr, timeout=60)
-        mdl_rqt.encoding = "utf-8"
-        try:
-            dct_rqt = loads(mdl_rqt.text)
-            return dct_rqt
-        except ValueError:
-            if bln_print:
-                print(mdl_rqt.text[0:100])
-            raise KeyError("cannot load data")
+        pass
+        # mdl_rqt = post(str_url, data=dct_dta, headers=dct_hdr, timeout=60)
+        # mdl_rqt.encoding = "utf-8"
+        # try:
+        #     dct_rqt = loads(mdl_rqt.text)
+        #     return dct_rqt
+        # except ValueError:
+        #     if bln_print:
+        #         print(mdl_rqt.text[0:100])
+        #     raise KeyError("cannot load data")
 
 
 class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):
