@@ -190,7 +190,7 @@ class ioBsc(pd_DataFrame):
             self.iot = 'sql'
         elif [True for i in self.lcn.keys() if i in ['mng', 'dbs', 'cln']] == [True, True, True]:
             self.iot = 'mng'
-        elif [True for i in self.lcn.keys() if i in ['url', 'prm']] == [True, True]:
+        elif [True for i in self.lcn.keys() if i in ['url']] == [True]:
             self.iot = 'api'
         else:
             raise KeyError('stop: keys in %s is not available.' % self.lcn)
@@ -567,6 +567,7 @@ class apiMixin(ioBsc):
             if bln_print:
                 print(mdl_rqt.text[0:100])
             raise KeyError("cannot load data")
+
 
 class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):
 
