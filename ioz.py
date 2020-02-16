@@ -123,7 +123,11 @@ class ioBsc(pd_DataFrame):
     @lcn.setter
     def lcn(self, lcn):
         if lcn is None or type(lcn) in self.lst_typ_lcn:
-            self.__lcn = lcn
+            if self.__lcn is None:
+                self.__lcn = lcn
+            else:
+                for ikey in lcn.keys():
+                    self.__lcn[ikey] = lcn[ikey]
             self.__attr_rst('lcn')
         else:
             raise TypeError('info: lcn\'s type %s is not available.' % type(lcn))
@@ -135,15 +139,15 @@ class ioBsc(pd_DataFrame):
         """
         self.lcn['mng'] = "mongodb://localhost:27017" if not self.lcn['mng'] else self.lcn['mng']
         self._myMng = MongoClient(host=self.lcn['mng'])
-        self._myMdb = self._myMng[self.lcn['mdb']] if not self.lcn['mdb'] else None
-        self._myCln = self._myMdb[self.lcn['cln']] if not self.lcn['cln'] else None
+        self._myMdb = self._myMng[self.lcn['mdb']] if self.lcn['mdb'] else None
+        self._myCln = self._myMdb[self.lcn['cln']] if self.lcn['cln'] else None
 
     def sql_nit(self):
         self.lcn['sql'] = {'hst': '172.16.0.13', 'prt': 3306, 'usr': None, 'psw': None} if \
             not self.lcn['sql'] else self.lcn['sql']
-        self._mySql = self.lcn['sql'] if not self.lcn['sql'] else None
-        self._mySdb = self.lcn['sdb'] if not self.lcn['sdb'] else None
-        self._myTbl = self.lcn['tbl'] if not self.lcn['tbl'] else None
+        self._mySql = self.lcn['sql'] if self.lcn['sql'] else None
+        self._mySdb = self.lcn['sdb'] if self.lcn['sdb'] else None
+        self._myTbl = self.lcn['tbl'] if self.lcn['tbl'] else None
 
     def dts_nit(self, ndx_rst=True, ndx_lvl=None):
         """
@@ -209,7 +213,7 @@ class ioBsc(pd_DataFrame):
             self.lcn_nit()
             if [True for i in self.iot if i in ['mng', 'mnz']]:  # for special cases, reset some attributes
                 self.mng_nit()
-            if [True for i in self.iot if i in ['sql','sqz']]:
+            if [True for i in self.iot if i in ['sql', 'sqz']]:
                 self.sql_nit()
 
     def typ_to_dtf(self, clm=None, *, spr=False, rtn=False):
@@ -261,7 +265,7 @@ class lclMixin(ioBsc):
     def mpt_csv(self, fld=None, fls=None, sep=None, *, spr=False, rtn=False):
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
-        sep = "','" if sep is None else sep
+        sep = ',' if sep is None else sep
         self.dts = read_csv(path.join(fld, fls), sep=sep)
         if spr:
             self.spr_nit()
@@ -284,7 +288,7 @@ class lclMixin(ioBsc):
 
     def lcl_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
-            self.lcn['fls'] = [self.lcn['fls']]
+            self.lcn = {'fls': [self.lcn['fls']]}
         dtf_mrg = pd_DataFrame() if not self.dts else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
         for i_fls in self.lcn['fls']:
             if i_fls.rsplit('.')[1] in ['csv']:
