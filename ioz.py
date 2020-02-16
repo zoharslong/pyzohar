@@ -21,11 +21,14 @@ from bsc import stz, lsz, dcz
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
+from requests import post
+from json import loads, dumps, JSONDecodeError
 
 
 class ioBsc(pd_DataFrame):
     """
     I/O basic
+    ioBsc.lcn in format {'fld','fls','mng','mdb','cln','sql','sdb','tbl','url','pst','hdr'}
     """
     lst_typ_dts = [
         str,
@@ -92,7 +95,7 @@ class ioBsc(pd_DataFrame):
     @dts.setter
     def dts(self, dts):
         """
-        self.dts = dts.
+        self.dts = dts
         :param dts: a dataset to import.
         :return: None
         """
@@ -137,17 +140,27 @@ class ioBsc(pd_DataFrame):
         if self.io type in mongodb, reset mongo attributes _myMng, _mySdb, _myCln.
         :return: None
         """
+        if 'mng' not in self.lcn.keys():
+            self.lcn['mng'] = None
         self.lcn['mng'] = "mongodb://localhost:27017" if not self.lcn['mng'] else self.lcn['mng']
         self._myMng = MongoClient(host=self.lcn['mng'])
-        self._myMdb = self._myMng[self.lcn['mdb']] if self.lcn['mdb'] else None
-        self._myCln = self._myMdb[self.lcn['cln']] if self.lcn['cln'] else None
+        self._myMdb = self._myMng[self.lcn['mdb']] if [True if 'mdb' in self.lcn.keys() else False] else None
+        self._myCln = self._myMdb[self.lcn['cln']] if [True if 'cln' in self.lcn.keys() else False] else None
 
     def sql_nit(self):
+        if 'sql' not in self.lcn.keys():
+            self.lcn['sql'] = None
         self.lcn['sql'] = {'hst': '172.16.0.13', 'prt': 3306, 'usr': None, 'psw': None} if \
             not self.lcn['sql'] else self.lcn['sql']
-        self._mySql = self.lcn['sql'] if self.lcn['sql'] else None
-        self._mySdb = self.lcn['sdb'] if self.lcn['sdb'] else None
-        self._myTbl = self.lcn['tbl'] if self.lcn['tbl'] else None
+        self._mySql = self.lcn['sql'] if [True if 'sql' in self.lcn.keys() else False] else None
+        self._mySdb = self.lcn['sdb'] if [True if 'sdb' in self.lcn.keys() else False] else None
+        self._myTbl = self.lcn['tbl'] if [True if 'tbl' in self.lcn.keys() else False] else None
+
+    def api_nit(self):
+        if 'pst' not in self.lcn.keys():
+            self.lcn['pst'] = None
+        if 'hdr' not in self.lcn.keys():
+            self.lcn['hdr'] = None
 
     def dts_nit(self, ndx_rst=True, ndx_lvl=None):
         """
@@ -192,13 +205,13 @@ class ioBsc(pd_DataFrame):
         self.iot = []
         if [True for i in self.lcn.keys() if i in ['fld', 'fls']] == [True, True]:
             self.iot.append('lcl')
-        elif [True for i in self.lcn.keys() if i in ['sql', 'sdb']] == [True, True]:
+        if [True for i in self.lcn.keys() if i in ['sdb']] == [True]:
             self.iot.append('sql')
-        elif [True for i in self.lcn.keys() if i in ['mng', 'mdb', 'cln']] == [True, True, True]:
+        if [True for i in self.lcn.keys() if i in ['mdb', 'cln']] == [True, True]:
             self.iot.append('mng')
-        elif [True for i in self.lcn.keys() if i in ['url']] == [True]:
+        if [True for i in self.lcn.keys() if i in ['url']] == [True]:
             self.iot.append('api')
-        else:
+        if not self.iot:
             raise KeyError('stop: keys in %s is not available.' % self.lcn)
 
     def __attr_rst(self, typ=None, *, ndx_rst=True, ndx_lvl=None):
@@ -215,6 +228,8 @@ class ioBsc(pd_DataFrame):
                 self.mng_nit()
             if [True for i in self.iot if i in ['sql', 'sqz']]:
                 self.sql_nit()
+            if [True for i in self.iot if i in ['api', 'apz']]:
+                self.api_nit()
 
     def typ_to_dtf(self, clm=None, *, spr=False, rtn=False):
         if self.len == 0 or not self.dts:
@@ -256,8 +271,13 @@ class ioBsc(pd_DataFrame):
 class lclMixin(ioBsc):
     """
     local files input and output operations.
-    lcn format in {'fld':'','fls':['','',...]}.
-    >>> lclMixin(lcn={'fld':'D:/','fls':['fgr.xlsx','fgr.xlsx']}).lcl_mpt(rtn=True) # 从指定文件夹位置导入文件到内存
+    lcn format in {'fld':'','fls':['','',...],'mng':None,'mdb':}.
+    >>> lclMixin(lcn={'fld':'D:/','fls':['smp01.xlsx']}).lcl_mpt(rtn=True) # 从指定文件夹位置导入文件到内存
+       A  B  C
+    0  a  1  e
+    1  b  2  f
+    2  c  3  g
+
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(lclMixin, self).__init__(dts, lcn, spr=spr)
@@ -328,9 +348,17 @@ class lclMixin(ioBsc):
             prc_txt_writer.close()
             print("info: success input dts to txt %s\n" % str(self.lcn.values()))
 
-    def lcl_xpt(self, *, typ='w', sep=2, cvr=True):
+    def lcl_xpt(self, *, typ='w', sep=2, cvr=True, ndx=False):
+        """
+        local exporting, type in lcn['fls']
+        :param typ: exporting type in ['w','a'] if lcn['fls'] in ['.js','.txt'], default 'w' means cover the old file
+        :param sep: cut how many units in the head and tail of each row, default 2 to be compatible with echarts
+        :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
+        :param ndx: remain index in the first line if lcn['fls'] in ['.xlsx'], default False
+        :return: None
+        """
         if self.lcn['fls'].rsplit('.')[1] in ['xlsx']:
-            self.dts.to_excel(path.join(*self.lcn.values()))
+            self.dts.to_excel(path.join(*self.lcn.values()), index=ndx)
         elif self.lcn['fls'].rsplit('.')[1] in ['csv']:
             self.dts.to_csv(path.join(*self.lcn.values()), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif self.lcn['fls'].rsplit('.')[1] in ['js', 'txt']:
@@ -340,6 +368,14 @@ class lclMixin(ioBsc):
 class mngMixin(ioBsc):
     """
     local files input and output operations.
+    >>> from pandas import DataFrame
+    >>> tst = ioz(dts=DataFrame([{'A':'a','B':1.0},{'A':'b','B':2.0}]),lcn={'mdb':'db_tst','cln':'cl_tst'})
+    >>> tst.mng_xpt()
+    ***** db_tst . cl_tst *****
+    info: 2 inserted, 0 updated, 0 dropped.
+    >>> tst.mng_mpt(rtn=True)
+    [{'_id': ObjectId('5e48f0ae8daa9bfcc3c0987f'), 'A': 'a', 'B': 1.0},
+     {'_id': ObjectId('5e48f0ae8daa9bfcc3c09880'), 'A': 'b', 'B': 2.0}]
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(mngMixin, self).__init__(dts, lcn, spr=spr)
@@ -487,18 +523,20 @@ class mngMixin(ioBsc):
         print('*****', self._myMdb.name, '.', self._myCln.name, '*****')
         # estimated_document_count/count_documents instead count
         if dtz_bgn == dtz_nit and self._myCln.estimated_document_count() == 0:
-            print(1)
             self.xpt_cln_dtf()
             if lst_ndx is not None:
                 self.crt_ndx(lst_ndx, True)
         else:
-            print(2)
             self.xpt_cln_dtf(lst_ndx, cvr)
 
 
 class sqlMixin(ioBsc):
     """
-    local files input and output operations.
+    mysql tables input and output operations.
+    >>> tst = ioz(lcn={'sql':{'hst':"cdb-cwlc1vtt.gz.tencentcdb.com", 'prt':10109,'usr':'**','psw':'sl********'},
+    >>>                'sdb':'db_spd_dly',
+    >>>                'tbl':'tb_spd_est_shd_ljw_190409',})
+    >>> tst.sql_run("SELECT table_name FROM information_schema.tables WHERE table_schema=%s",tst._mySdb)    # 查看表名
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(sqlMixin, self).__init__(dts, lcn, spr=spr)
@@ -529,9 +567,9 @@ class sqlMixin(ioBsc):
         :param rtn: return the result or not, default False
         :return: the target dataset in type DataFrame or None
         """
-        cnn = connect(host=self.lcn['sql']['hst'], port=self.lcn['sql']['prt'],
-                      user=self.lcn['sql']['usr'], password=self.lcn['sql']['psw'],
-                      database=self.lcn['sdb'], charset="utf8")
+        cnn = connect(host=self._mySql['hst'], port=self._mySql['prt'],
+                      user=self._mySql['usr'], password=self._mySql['psw'],
+                      database=self._mySdb, charset="utf8")
         crs = cnn.cursor()
         try:
             crs.execute(str_sql, lst_kys)
@@ -559,25 +597,62 @@ class sqlMixin(ioBsc):
 class apiMixin(ioBsc):
     """
     local files input and output operations.
+    >>> self = ioz(lcn={'mdb':'db_tst','cln':'cl_cld',
+    >>>     'url':"http://haixfsz.centaline.com.cn/service/postda",
+    >>>     'pst':{'uid':'haixf**', 'pwd':'SZ.***$', 'key':'requestCCESdeallog',
+    >>>     'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'}})
+    >>> self.api_run()  # 从api导入数据
+    >>> self.mng_xpt()  # 将api数据导出到mongodb
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
-    def api_run(self):
-        pass
-        # mdl_rqt = post(str_url, data=dct_dta, headers=dct_hdr, timeout=60)
-        # mdl_rqt.encoding = "utf-8"
-        # try:
-        #     dct_rqt = loads(mdl_rqt.text)
-        #     return dct_rqt
-        # except ValueError:
-        #     if bln_print:
-        #         print(mdl_rqt.text[0:100])
-        #     raise KeyError("cannot load data")
+    def api_run(self, *, spr=False, rtn=False):
+        mdl_rqt = post(self.lcn['url'], data=self.lcn['pst'], headers=self.lcn['hdr'], timeout=300)
+        mdl_rqt.encoding = "utf-8"
+        try:
+            self.dts = loads(mdl_rqt.text)
+            if spr:
+                self.spr_nit()
+            if rtn:
+                return self.dts
+        except ValueError:
+            print(mdl_rqt.text[0:100])
+            raise KeyError("cannot load data")
+
+    def get_vls(self, lst_kys, *, spr=False, rtn=False):
+        """
+        get values from dict by keys in api feedback.
+        :param lst_kys:
+        :param spr:
+        :param rtn:
+        :return:
+        """
+        if lst_kys:
+            lst_kys = lsz(lst_kys).typ_to_lst(rtn=True)
+            for i in lst_kys:
+                try:
+                    self.dts = self.dts[i]
+                    if spr:
+                        self.spr_nit()
+                    if rtn:
+                        return self.dts
+                except KeyError:
+                    print(str(self.__dts)[:8]+'..')
+                    raise KeyError('%s do not exist' % i)
+
+    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False):
+        self.api_run()
+        self.get_vls(lst_kys)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 
 class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):
-
+    """
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(ioz, self).__init__(dts, lcn, spr=spr)
 

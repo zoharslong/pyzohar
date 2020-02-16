@@ -191,7 +191,7 @@ class lsz(list):
         if rtn:
             return [self.len_min, self.len_max]
 
-    def __attr_rst(self):
+    def __attr_rst(self, prn=False):
         """
         reset attributes lsz.typ.
         :return: None
@@ -201,7 +201,8 @@ class lsz(list):
             self.len = len(self.__seq)
             self.edg_of_len()
         except TypeError:
-            print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
+            if prn:
+                print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
 
     def typ_to_lst(self, *, spr=False, rtn=False, prm='record'):
         """
@@ -254,7 +255,6 @@ class lsz(list):
                 int_bgn = 0
             lst_prm = lsz(args[int_bgn]).cpy_tal(self.len, rtn=True)
             self.seq = [(i, lst_prm[self.seq.index(i)]) for i in self.seq]
-
         if spr:
             self.spr_nit()
         if rtn:
@@ -463,7 +463,7 @@ class dcz(dict):
         else:
             raise TypeError('seq\'s type %s is not available.' % type(seq))
 
-    def __attr_rst(self):
+    def __attr_rst(self, prn=False):
         """
         reset attributes dcz.typ.
         :return: None
@@ -472,7 +472,8 @@ class dcz(dict):
         try:
             self.len = len(self.__seq)
         except TypeError:
-            print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
+            if prn:
+                print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
         self.kys = list(self.__seq.keys()) if self.typ in [dict] else None
         self.vls = list(self.__seq.values()) if self.typ in [dict] else None
 
