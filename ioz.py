@@ -13,6 +13,7 @@ from pandas.core.series import Series as typ_pd_Series                  # 定义
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
+from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGroupBy     # 定义dataframe.groupby类型
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat
 from os import path
 from os.path import exists
@@ -43,6 +44,7 @@ class ioBsc(pd_DataFrame):
         typ_pd_Series,
         typ_pd_Index,
         typ_pd_RangeIndex,
+        typ_pd_DataFrameGroupBy,
     ]   # data sets' type
     lst_typ_lcn = [list, lsz, dict, dcz]   # io methods' type
 
@@ -212,7 +214,7 @@ class ioBsc(pd_DataFrame):
         if [True for i in self.lcn.keys() if i in ['url']] == [True]:
             self.iot.append('api')
         if not self.iot:
-            raise KeyError('stop: keys in %s is not available.' % self.lcn)
+            print('info: keys in <.lcn: %s> is not available.' % self.lcn)
 
     def __attr_rst(self, typ=None, *, ndx_rst=True, ndx_lvl=None):
         """
@@ -272,7 +274,7 @@ class lclMixin(ioBsc):
     """
     local files input and output operations.
     lcn format in {'fld':'','fls':['','',...],'mng':None,'mdb':}.
-    >>> lclMixin(lcn={'fld':'D:/','fls':['smp01.xlsx']}).lcl_mpt(rtn=True) # 从指定文件夹位置导入文件到内存
+    >>> lclMixin(lcn={'fld':'dst/samples','fls':['smp01.xlsx']}).lcl_mpt(rtn=True) # 从指定文件夹位置导入文件到内存
        A  B  C
     0  a  1  e
     1  b  2  f
