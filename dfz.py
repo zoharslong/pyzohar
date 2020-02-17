@@ -8,6 +8,8 @@ dataframe operation.
 @alters:
 2020-02-16 zoharslong
 """
+from numpy import nan as np_nan
+from re import search as re_search, findall as re_findall, sub as re_sub
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from bsc import lsz
 from ioz import ioz
@@ -180,6 +182,116 @@ class clmMixin(dfBsc):
             self.rnm_clm(lst_stt, lst_rnm)
         else:
             print("info: columns' multi-index cannot be altered.")
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def add_clm_rgx(self, *args, spr=False, rtn=False, prm=None):
+        """"""
+        if type(args[0]) is dict and len(args) == 1:
+            lst_clm = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
+            lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
+        else:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+            lst_new = lsz(args[0]).typ_to_lst(rtn=True) if len(args) == 1 else lsz(args[1]).typ_to_lst(rtn=True)
+        prm = lsz(prm)
+        prm.typ_to_lst()
+        prm.cpy_tal(len(lst_clm), spr=True)
+        for i in range(len(lst_clm)):
+            self.dts[lst_new[i]] = [re_findall(prm[i], j)[0] if re_search(prm[i], j) else None for
+                                    j in self.dts[lst_clm[i]]]
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def ltr_clm_rpc(self, lst_clm, *args, spr=False, rtn=False, prm=None):
+        """
+        alter columns by replacing contents.
+        >>> tst = clmMixin([{'A':'1'},{'A':'abc'},{'A':None}])
+        >>> tst.typ_to_dtf()
+        >>> tst.ltr_clm_rpc('A','1','2', rtn=True)
+              A
+        0     2
+        1   abc
+        2  None
+        >>> tst.ltr_clm_rpc('A','b','B',prm='part', rtn=True)
+              A
+        0     2
+        1   aBc
+        2  None
+        >>> from math import isnan
+        >>> tst = clmMixin([{'A':1},{'A':None}])
+        >>> tst.typ_to_dtf()
+        >>> tst.ltr_clm_rpc('A',{'':'thisIsNa'},prm=isnan, rtn=True)
+                  A
+        0         1
+        1  thisIsNa
+        :param lst_clm: target columns, all the alteration are used on each column
+        :param args: ({old_content:new_content}) or (old_content, new_content)
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: in [None, 'part', function]
+        :return: if rtn is True, return self.dts
+        """
+        if type(args[0]) is dict and len(args) == 1:
+            lst_old = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
+            lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
+        else:
+            lst_old = lsz(args[0]).typ_to_lst(rtn=True)
+            lst_new = lsz(args[1])
+            lst_new.typ_to_lst()
+            lst_new.cpy_tal(len(lst_old), spr=True)
+        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
+        for i in range(len(lst_clm)):
+            for j in range(len(lst_old)):
+                if prm is None:                     # 当prm为None时运行完全替换
+                    self.dts[lst_clm[i]] = [lst_new[j] if k == lst_old[j] else k for k in self.dts[lst_clm[i]]]
+                elif prm in ['part', 'prt']:    # 当prm为string类型且内容为'part'时运行部分替换
+                    self.dts[lst_clm[i]] = [re_sub(lst_old[j], lst_new[j], k) if
+                                            type(k) is str and re_search(lst_old[j], k) else
+                                            k for k in self.dts[lst_clm[i]]]
+                else:                           # 当prm为函数时判断满足prm()则运行替换
+                    self.dts[lst_clm[i]] = [lst_new[j] if prm(k) else k for k in self.dts[lst_clm[i]]]
+        self.dts_nit(False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def ltr_clm_typ(self, *args, spr=False, rtn=False):
+        """
+        alter columns' data type.
+        >>> tst = clmMixin([{'A':1,'B':'a'},{'A':2,'B': 3},{'A':'', 'B':None}])
+        >>> tst.typ_to_dtf()
+        >>> tst.ltr_clm_typ({'A':float,'B':str}, rtn=True)  # 空类值在转float时会转为np.nan, 转str时会转为''
+        >>> # 空值类形如['NA', 'nan', 'null', 'None', '', None, np.nan]
+             A  B
+        0  1.0  a
+        1  2.0  3
+        2  NaN
+        :param args: ({columns: types}) or ([columns],[types]), types in [str, float, int]
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm:
+        :return: if rtn is True, return self.dts
+        """
+        if type(args[0]) is dict and len(args) == 1:
+            dct_typ = args[0]
+        else:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+            lst_typ = lsz(args[1])
+            lst_typ.typ_to_lst()
+            lst_typ.cpy_tal(len(lst_clm), spr=True)
+            dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)                      # args转字典
+        lst_flt = [i for i in dct_typ.keys() if dct_typ[i] in [int, 'int', float, 'float']]
+        self.ltr_clm_rpc(lst_flt, ['NA', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
+        self.dts = self.dts.astype(dct_typ)  # 核心转换
+        lst_str = [i for i in dct_typ.keys() if dct_typ[i] in [str, 'str']]
+        self.ltr_clm_rpc(lst_str, ['NA', 'nan', 'null', 'None', None], [''])            # 转str列的空值处理
+        self.dts_nit(False)
         if spr:
             self.spr_nit()
         if rtn:
