@@ -11,6 +11,7 @@ dataframe operation.
 from numpy import nan as np_nan
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
+from math import isnan as math_isnan
 from bsc import lsz
 from ioz import ioz
 
@@ -188,7 +189,20 @@ class clmMixin(dfBsc):
             return self.dts
 
     def add_clm_rgx(self, *args, spr=False, rtn=False, prm=None):
-        """"""
+        """
+        add new columns from old columns' some part.
+        >>> tst = dfz([{"A":'1=a;'},{"A":'2=b;'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_rgx('A', 'B', prm='1=(.*?);', rtn=True)
+              A     B
+        0  1=a;     a
+        1  2=b;  None
+        :param args: ({oldColumns: newColumns}) or ([oldColumns], [newColumns])
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: a list of regex to be found in old columns
+        :return: if rtn is True, return self.dts
+        """
         if type(args[0]) is dict and len(args) == 1:
             lst_clm = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
             lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
@@ -296,31 +310,69 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def ltr_clm_flt(self, lst_clm, *, spr=False, rtn=False, prn=True):
+    def ltr_clm_flt(self, *args, spr=False, rtn=False, prn=True):
         """
         check columns in float, if cannot convert into float, fill None.
         >>> tst = clmMixin([{'A':1.21},{'A':2},{'A':'a'}])
         >>> tst.typ_to_dtf()
         >>> tst.ltr_clm_flt('A')
         [{'A': ['a']}]  # 返回格式[{column: [unusual cells, ...]},{},...]
-        :param lst_clm: target columns
+        :param args: target columns, alter if len == 1, create new columns if len == 2
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :param prn: print cells that cannot convert into float
         :return: if prn is True, return unusual cells; if not prn and rtn, return self.dts
         """
+        lst_old = lsz(args[0]).typ_to_lst(rtn=True)
+        if len(args) == 1:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+        else:
+            lst_clm = lsz(args[1]).typ_to_lst(rtn=True)
         lst_ttl = []
-        for i_clm in lst_clm:
-            if i_clm in self.clm:
-                lst_err = [i for i in self.dts[i_clm] if
+        for i in range(len(lst_clm)):
+            if lst_old[i] in self.clm:
+                lst_err = [i for i in self.dts[lst_old[i]] if
                            (not re_match("^\d+?$", str(i))) & (not re_match("^\d+?\.\d+?$", str(i)))]
-                self.dts[i_clm] = self.dts.apply(lambda x: None if
-                                                 (not re_match("^\d+?$", str(x[i_clm]))) &
-                                                 (not re_match("^\d+?\.\d+?$", str(x[i_clm]))) else str(x[i_clm]),
-                                                 axis=1)
-                lst_ttl.append({i_clm: lst_err})
+                self.dts[lst_clm[i]] = self.dts.apply(lambda x: None if
+                                                      (not re_match("^\d+?$", str(x[lst_old[i]]))) &
+                                                      (not re_match("^\d+?\.\d+?$", str(x[lst_old[i]]))) else
+                                                      str(x[lst_old[i]]), axis=1)
+                lst_ttl.append({lst_old[i]: lst_err})
         if prn:
             return lst_ttl
+        self.dts_nit(False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def ltr_clm_rnd(self, *args, spr=False, rtn=False, prm=2):
+        """
+        alter columns' decimal scales.
+        >>> tst = dfz([{'A':1.111},{'A':1.1},{'A':None}])
+        >>> tst.typ_to_dtf()
+        >>> tst.ltr_clm_rnd('A',prm=1, rtn=True)
+             A
+        0  1.1
+        1  1.1
+        2  NaN
+        :param args: ([oldColumns]) or ([oldColumns],[newColumns])
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: decimal scales. default 2
+        :return: if rtn is True, return self.dts
+        """
+        lst_old = lsz(args[0]).typ_to_lst(rtn=True)
+        if len(args) == 1:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+        else:
+            lst_clm = lsz(args[1]).typ_to_lst(rtn=True)
+        prm = lsz(prm)
+        prm.typ_to_lst()
+        prm.cpy_tal(len(lst_clm), spr=True)
+        for i in range(len(lst_clm)):
+            self.dts[lst_clm[i]] = self.dts.apply(lambda x: np_nan if math_isnan(x[lst_old[i]]) else
+                                                  round(x[lst_old[i]], prm[i]), axis=1)
         self.dts_nit(False)
         if spr:
             self.spr_nit()
@@ -361,6 +413,103 @@ class clmMixin(dfBsc):
             self.spr_nit()
         if rtn:
             return self.dts
+
+
+class dcmMixin(dfBsc):
+
+    def __init__(self, dts=None, lcn=None, *, spr=False):
+        super(dcmMixin, self).__init__(dts, lcn, spr=spr)
+
+    def srt_dcm(self, lst_clm=None, scd=True, *, spr=False, rtn=False, prm='last'):
+        """
+        sort documents.
+        :param lst_clm: target columns
+        :param scd: in [True, false] for [ascending, descending], default ascending
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: in ['first','last'], default 'last'
+        :return: if rtn is True, return self.dts
+        """
+        self.dts = self.dts.sort_values(by=lst_clm, ascending=scd, na_position=prm)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def drp_dcm(self, lst_ndx, *, spr=False, rtn=False):
+        """
+        drop documents by index numbers.
+        :param lst_ndx: a list of index
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: if rtn is True, return self.dts
+        """
+        if lst_ndx is None:
+            pass
+        else:
+            lst_ndx = lsz(lst_ndx).typ_to_lst(rtn=True)
+            self.dts = self.dts.drop(lst_ndx, axis=0)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def drp_dcm_na(self, lst_clm=None, *, spr=False, rtn=False, prm=None):
+        """
+        drop documents for na cells.
+        >>> import pandas as pd
+        >>> tst = dfz([{'A':1,'B':'a','C':'a'},{'A':pd.NaT,'B':'b','C':'a'},{'A':pd.NaT,'B':pd.NaT,'C':'a'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.drp_dcm_na(prm=2, rtn=True)     # 当行中至少有两单元格非空时保留
+               A  B  C
+        0      1  a  a
+        1    NaT  b  a
+        >>> tst.drp_dcm_na('B', rtn=True)
+               A  B  C
+        0      1  a  a
+        1    NaT  b  a
+        :param lst_clm: default None means do nothing
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm:  remain documents at least <prm> cells not nan, default None
+        :return: if rtn is True, return self.dts
+        """
+        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if not prm else lst_clm
+        self.dts = self.dts.dropna(axis=0,          # 0 for index and 1 for columns
+                                   how='any',       # any and all
+                                   thresh=prm,      # optional Keep only the rows with at least 2 non-NA values
+                                   subset=lst_clm)  # optional columns in target
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def __end(self):
+        pass
+
+
+class cllMixin(dcmMixin, clmMixin):
+
+    def __init__(self, dts=None, lcn=None, *, spr=False):
+        super(cllMixin, self).__init__(dts, lcn, spr=spr)
+
+
+class tmsMixin(cllMixin):
+
+    def __init__(self, dts=None, lcn=None, *, spr=False):
+        super(tmsMixin, self).__init__(dts, lcn, spr=spr)
+
+
+class pltMixin(cllMixin):
+
+    def __init__(self, dts=None, lcn=None, *, spr=False):
+        super(pltMixin, self).__init__(dts, lcn, spr=spr)
+
+
+class dfz(tmsMixin, pltMixin):
+
+    def __init__(self, dts=None, lcn=None, *, spr=False):
+        super(dfz, self).__init__(dts, lcn, spr=spr)
 
 
 print('info: multiple io\'s alteration ready.')
