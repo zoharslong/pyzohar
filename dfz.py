@@ -9,7 +9,7 @@ dataframe operation.
 2020-02-16 zoharslong
 """
 from numpy import nan as np_nan
-from re import search as re_search, findall as re_findall, sub as re_sub
+from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from bsc import lsz
 from ioz import ioz
@@ -261,6 +261,72 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
+    def ltr_clm_unl(self, *args, spr=False, rtn=False):
+        """
+        atler columns in type str English words to upper or lower.
+        >>> tst = clmMixin([{'A':1},{'A':'abC'},{'A':'ABc'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.ltr_clm_unl('A','ppr', rtn=True)
+             A
+        0    1
+        1  ABC
+        2  ABC
+        :param args: ({columns:upperNLower}) or ([columns],[upperNLower]), unl in ['upper','ppr','lower','lwr']
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: if rtn is True, return self.dts
+        """
+        if type(args[0]) is dict and len(args) == 1:
+            dct_typ = args[0]
+        else:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+            lst_typ = lsz(args[1])
+            lst_typ.typ_to_lst()
+            lst_typ.cpy_tal(len(lst_clm), spr=True)
+            dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]   # args转字典
+        print(dct_typ)
+        for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['lower', 'lwr']]:
+            print(i_clm)
+            self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].lower() if type(x[i_clm]) is str else x[i_clm], axis=1)
+        for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['upper', 'ppr']]:
+            self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].upper() if type(x[i_clm]) is str else x[i_clm], axis=1)
+        self.dts_nit(False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def ltr_clm_flt(self, lst_clm, *, spr=False, rtn=False, prn=True):
+        """
+        check columns in float, if cannot convert into float, fill None.
+        >>> tst = clmMixin([{'A':1.21},{'A':2},{'A':'a'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.ltr_clm_flt('A')
+        [{'A': ['a']}]  # 返回格式[{column: [unusual cells, ...]},{},...]
+        :param lst_clm: target columns
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prn: print cells that cannot convert into float
+        :return: if prn is True, return unusual cells; if not prn and rtn, return self.dts
+        """
+        lst_ttl = []
+        for i_clm in lst_clm:
+            if i_clm in self.clm:
+                lst_err = [i for i in self.dts[i_clm] if
+                           (not re_match("^\d+?$", str(i))) & (not re_match("^\d+?\.\d+?$", str(i)))]
+                self.dts[i_clm] = self.dts.apply(lambda x: None if
+                                                 (not re_match("^\d+?$", str(x[i_clm]))) &
+                                                 (not re_match("^\d+?\.\d+?$", str(x[i_clm]))) else str(x[i_clm]),
+                                                 axis=1)
+                lst_ttl.append({i_clm: lst_err})
+        if prn:
+            return lst_ttl
+        self.dts_nit(False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
     def ltr_clm_typ(self, *args, spr=False, rtn=False):
         """
         alter columns' data type.
@@ -275,7 +341,6 @@ class clmMixin(dfBsc):
         :param args: ({columns: types}) or ([columns],[types]), types in [str, float, int]
         :param spr: let self = self.dts
         :param rtn: default False, return None
-        :param prm:
         :return: if rtn is True, return self.dts
         """
         if type(args[0]) is dict and len(args) == 1:
@@ -285,7 +350,7 @@ class clmMixin(dfBsc):
             lst_typ = lsz(args[1])
             lst_typ.typ_to_lst()
             lst_typ.cpy_tal(len(lst_clm), spr=True)
-            dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)                      # args转字典
+            dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]                   # args转字典
         lst_flt = [i for i in dct_typ.keys() if dct_typ[i] in [int, 'int', float, 'float']]
         self.ltr_clm_rpc(lst_flt, ['NA', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
         self.dts = self.dts.astype(dct_typ)  # 核心转换
