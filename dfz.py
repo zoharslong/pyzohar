@@ -9,6 +9,7 @@ dataframe operation.
 2020-02-16 zoharslong
 """
 from numpy import nan as np_nan
+from pandas import merge, concat
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
@@ -509,8 +510,50 @@ class dcmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def drp_dcm_ctt(self):
-        pass
+    def drp_dcm_ctt(self, *args, spr=False, rtn=False, prm=True):
+        """
+        drop documents for contents.
+        >>> tst = dfz([{'A':'a','B':'1'},{'A':'b','B':'2'},{'A':'c','B':'3'},{'A':'d','B':'4'},])
+        >>> tst.typ_to_dtf()
+        >>> tst.drp_dcm_ctt(['A','B'],[['a','b'],['2','3']],rtn=True)
+           A  B
+        0  d  4
+        :param args: ({columns:[content,..]}) or ([column,..],[[content,..],..])
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: in [(True,'drop'),(False,'keep'),'partDrop','partKeep'], default True for dropping documents.
+        :return: if rtn is True, return self.dts
+        """
+        if type(args[0]) is dict and len(args) == 1:
+            lst_clm = lsz(list(args[0].keys()))
+            lst_ctt = lsz(list(args[0].values()))
+        else:
+            lst_clm = lsz(args[0])
+            lst_ctt = lsz(args[1])
+        lst_clm.typ_to_lst()
+        lst_ctt.typ_to_lst()
+        if len(lst_clm) == 1 and type(lst_ctt[0]) not in [list, lsz]:
+            lst_ctt = lsz([lst_ctt.seq])            # 当仅检查单列时，需要控制其待识别内容为唯一个列表
+        lst_clm.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).edg_of_len(rtn=True)[1], spr=True)
+        lst_ctt.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).edg_of_len(rtn=True)[1], spr=True)
+        for i in range(len(lst_clm)):
+            if not prm or prm in ['keep', 'kep']:   # 当not drop 或prm='keep'时，保留完全匹配的行
+                self.dts = self.dts.loc[self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
+            elif prm or prm in ['drop', 'drp']:     # 当drop 或prm='drop'时，删除完全匹配的行
+                self.dts = self.dts.loc[~self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
+            elif prm in ['partDrop', 'prtDrp']:     # 当prm='partDrop'时，删除正则匹配的行
+                lst_ndx = [i for j in lst_ctt for i in self.dts.index if
+                           re_search(j, self.dts.loc[i, lst_clm[i]])]
+                self.dts = self.dts.drop(lst_ndx, axis=0)
+            elif prm in ['partKeep', 'prtKep']:     # 当prm='partKeep'时，保留正则匹配的行
+                lst_ndx = [i for j in lst_ctt for i in self.dts.index if
+                           re_search(j, self.dts.loc[i, lst_clm[i]])]
+                lst_ndx = [i for i in self.dts.index if i not in lst_ndx]
+                self.dts = self.dts.drop(lst_ndx, axis=0)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
     def __end(self):
         pass
@@ -520,6 +563,58 @@ class cllMixin(dcmMixin, clmMixin):
 
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(cllMixin, self).__init__(dts, lcn, spr=spr)
+
+    def mrg_dtf(self, dtf_mrg, *args, spr=False, rtn=False, prm='outer'):
+        """merge dataframe horizontally or vertically.
+        >>> import pandas as pd
+        >>> tst = dfz()
+        >>> tst.mrg_dtf_hrl(pd.DataFrame([{"A":1}]), pd.DataFrame([{"A":2}]), prm='vrl', rtn=True)
+           A
+        0  1
+        1  2
+        >>> tst = dfz([{'A':1,'B':'a'},{'A':2,'B':'b'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.mrg_dtf_hrl(pd.DataFrame([{'A':2,'C':'x'}]), 'A', prm='outer', rtn=True)
+           A  B    C
+        0  1  a  NaN
+        1  2  b    x
+        :param dtf_mrg: if prm is 'vrl': merge[self.dts,dtf_mrg,*args]; else: name of the dataframe merged on the right side
+        :param args: the column names for fitting in self.dts and dtf_mrg, len(lst_str_clm_on) in [1,2]
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: pandas.merge(how=str_how), in ['inner', 'outer', 'left', 'right','dpl'];
+            str_how in ['dpl']: drop documents in self.dts matched in dtf_mrg
+        :return: if rtn is True, return self.dts
+        """
+        if prm in ['vertical', 'vrl']:              # merging vertically
+            lst_dtf = []
+            if self.dts:
+                lst_dtf.extend([self.dts])
+            lst_dtf.extend([dtf_mrg])
+            if args:
+                lst_dtf.extend(lsz(args).typ_to_lst(rtn=True))
+            self.dts = concat(lst_dtf, ignore_index=True, keys=None, axis=0, sort=False)
+        elif prm in ['outer_index', 'ndx']:         # merging by indexes
+            self.dts = merge(self.dts, dtf_mrg, how='outer', left_index=True, right_index=True)
+        else:
+            lst_clm_on = lsz(args)
+            lst_clm_on.typ_to_lst()
+            lst_clm_on.cpy_tal(2, spr=True)         # 扩充用于匹配的字段名以满足left/right_on的需求
+            if prm in ['inner', 'outer', 'left', 'right']:                      # traditional merging
+                self.dts = merge(self.dts, dtf_mrg, how=prm,
+                                 left_on=lsz(lst_clm_on[0]).typ_to_lst(rtn=True),
+                                 right_on=lsz(lst_clm_on[1]).typ_to_lst(rtn=True))
+            elif prm in ['dpl']:                    # merge and drop duplicates
+                dtf_mrg_drp = dtf_mrg[lsz(lst_clm_on[1]).typ_to_lst(rtn=True)]  # 仅保留用于匹配的列，避免对self.dts的污染
+                self.dts = merge(self.dts, dtf_mrg_drp, how='left',
+                                 left_on=lsz(lst_clm_on[0]).typ_to_lst(rtn=True),
+                                 right_on=lsz(lst_clm_on[1]).typ_to_lst(rtn=True),
+                                 indicator=True)    # 使用自动定义的列'_merge'标记来源
+                self.dts = self.dts.loc[self.dts['_merge'] != 'both', :].drop(['_merge'], axis=1)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 
 class tmsMixin(cllMixin):
