@@ -14,7 +14,7 @@ from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
 from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGroupBy     # 定义dataframe.groupby类型
-from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat
+from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
 from os import path
 from os.path import exists
 from bsc import stz, lsz, dcz
@@ -214,7 +214,7 @@ class ioBsc(pd_DataFrame):
         if [True for i in self.lcn.keys() if i in ['url']] == [True]:
             self.iot.append('api')
         if not self.iot:
-            print('info: keys in <.lcn: %s> is not available.' % self.lcn)
+            print(' info: <.lcn: %s> is not available.' % self.lcn)
 
     def __attr_rst(self, typ=None, *, ndx_rst=True, ndx_lvl=None):
         """
@@ -326,7 +326,7 @@ class lclMixin(ioBsc):
         if rtn:
             return self.dts
 
-    def xpt_txt(self, typ='w', sep=2, cvr=True):
+    def xpt_txt(self, *, typ='w', sep=2, cvr=True):
         """
         import dataset to file.txt or file.js(https://blog.csdn.net/matrix_google/article/details/76861485).
         :param typ: type of open, usually in ['a','w'], a for continue, w for cover
@@ -350,21 +350,29 @@ class lclMixin(ioBsc):
             prc_txt_writer.close()
             print("info: success input dts to txt %s\n" % str(self.lcn.values()))
 
-    def lcl_xpt(self, *, typ='w', sep=2, cvr=True, ndx=False):
+    def lcl_xpt(self, *, typ='w', sep=2, cvr=True, ndx=False, prm='sheet1'):
         """
         local exporting, type in lcn['fls']
         :param typ: exporting type in ['w','a'] if lcn['fls'] in ['.js','.txt'], default 'w' means cover the old file
         :param sep: cut how many units in the head and tail of each row, default 2 to be compatible with echarts
         :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
         :param ndx: remain index in the first line if lcn['fls'] in ['.xlsx'], default False
+        :param prm: if typ='a' and fls in type '.xlsx', continue to write the excel, use prm to define the sheet name
         :return: None
         """
-        if self.lcn['fls'].rsplit('.')[1] in ['xlsx']:
+        if self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
             self.dts.to_excel(path.join(*self.lcn.values()), index=ndx)
+        elif self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
+            writer = ExcelWriter(path.join(*self.lcn.values()))
+            self.dts.to_excel(writer, sheet_name=prm, index=ndx)
+            writer.save()
+            writer.close()
         elif self.lcn['fls'].rsplit('.')[1] in ['csv']:
             self.dts.to_csv(path.join(*self.lcn.values()), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif self.lcn['fls'].rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
+        else:
+            print('stop: known exporting type.')
 
 
 class mngMixin(ioBsc):
@@ -388,8 +396,8 @@ class mngMixin(ioBsc):
         export mongodb connection information.
         :param typ: which information is needed, in ['dbs','cln','clm','dcm','vls','max','min']
         :param prm: if typ is 'dcm', insert a certain column name for all the unique values in this column
-        :param dct_qry: only referred when typ in ['vls','max','min'] for documents choosing
-        :param lst_clm: only referred when typ in ['vls','max','min'] for documents choosing
+        :param dct_qry: only referred when typ in ['vls','max','min'] for documents' choosing
+        :param lst_clm: only referred when typ in ['vls','max','min'] for columns' choosing
         :return: a list of target values
         """
         if typ in ['dbs', 'database', 'mdb', 'mongodatabase']:
@@ -513,7 +521,7 @@ class mngMixin(ioBsc):
             dt += d
         print('info: %i inserted, %i updated, %i dropped.\n' % (nt, ct, dt))
 
-    def mng_xpt(self, lst_ndx=None, cvr=True, *, dtz_nit=None, dtz_bgn=None):
+    def mng_xpt(self, lst_ndx=None, cvr=True):
         """import from dataframe to collections
         根据库是否存在, 进行有选择性的导入策略,全部导入或更新导入
         :param lst_ndx: 为新建的集合创建唯一索引组
@@ -524,7 +532,7 @@ class mngMixin(ioBsc):
         """
         print('*****', self._myMdb.name, '.', self._myCln.name, '*****')
         # estimated_document_count/count_documents instead count
-        if dtz_bgn == dtz_nit and self._myCln.estimated_document_count() == 0:
+        if self._myCln.estimated_document_count() == 0:
             self.xpt_cln_dtf()
             if lst_ndx is not None:
                 self.crt_ndx(lst_ndx, True)

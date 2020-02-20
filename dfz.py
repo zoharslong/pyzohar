@@ -339,6 +339,7 @@ class clmMixin(dfBsc):
                                                       str(x[lst_old[i]]), axis=1)
                 lst_ttl.append({lst_old[i]: lst_err})
         if prn:
+            print('info: unusual cells %s.' % lst_ttl)
             return lst_ttl
         self.dts_nit(False)
         if spr:
@@ -483,6 +484,33 @@ class dcmMixin(dfBsc):
             self.spr_nit()
         if rtn:
             return self.dts
+
+    def drp_dcm_dpl(self, *args, spr=False, rtn=False, prm='first', scd=True, prn=True):
+        """
+        drop duplicate documents.
+        :param args: ([columnsDropping]) or ([columnsDropping], [columnsSorting])
+        :param scd: if len(args) == 2, define the sorting method
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: dropping method, in ['first','last',None], default first
+        :param prn: print detail of dropping duplicates or not, default True
+        :return: if rtn is True, return self.dts
+        """
+        lst_dpl = lsz(args[0]).typ_to_lst(rtn=True)
+        if len(args) > 1:
+            lst_srt = lsz(args[1]).typ_to_lst(rtn=True)
+            self.srt_dcm(lst_srt, scd)
+        len_bfr = self.len
+        self.dts = self.dts.drop_duplicates(subset=lst_dpl, keep=prm)
+        if prn:
+            print("info: <%s> drop duplicate documents, %.i in total %.i left." % (self, len_bfr, self.len))
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def drp_dcm_ctt(self):
+        pass
 
     def __end(self):
         pass
