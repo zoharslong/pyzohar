@@ -653,10 +653,28 @@ class dtz(object):
             pass
         elif str_typ.lower() in ['date', 'dt_date']:
             self.val = self.val.date()
+        elif str_typ.lower() in ['time', 'dt_time']:
+            self.val = self.val.time()
+        elif str_typ.lower() in ['hour']:
+            self.val = self.val.hour()
+        elif str_typ.lower() in ['week']:
+            self.val = self.val.isocalendar()[1]
+        elif str_typ.lower() in ['weekDay', 'weekday']:
+            self.val = self.val.isocalendar()[2]
+        elif str_typ.lower() in ['day']:
+            self.val = self.val.day
+        elif str_typ.lower() in ['month', 'mnth']:
+            self.val = self.val.month
+        elif str_typ.lower() in ['year']:
+            self.val = self.val.year
         elif str_typ.lower() in ['pd_structtime', 'pd_timestamp']:
             self.val = pd_to_datetime(dt_datetime.strftime(self.val, '%Y-%m-%d %H:%M:%S'), format='%Y-%m-%d %H:%M:%S')
         elif str_typ.lower() in ['timetuple', 'structtime', 'tm_structtime']:
             self.val = self.val.timetuple()
+        elif str_typ.lower() in ['mday']:
+            self.val = self.val.timetuple().tm_mday
+        elif str_typ.lower() in ['yday']:
+            self.val = self.val.timetuple().tm_yday
         elif str_typ.lower() in ['float', 'flt', 'int']:
             self.val = int(tm_mktime(self.val.timetuple()))
         elif str_typ.lower() in ['string', 'str', 'stz']:

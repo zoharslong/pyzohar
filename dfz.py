@@ -631,9 +631,9 @@ class tmsMixin(cllMixin):
         0 1989-04-21 1989-04-21
         1 1989-04-21 1989-04-21
         :param args: (columns) or (columns, newColumns) or ({columns: newColumns})
-        :param spr:
-        :param rtn:
-        :return:
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: if rtn is True, return self.dts
         """
         if type(args[0]) is dict and len(args) == 1:
             lst_old = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
@@ -655,6 +655,20 @@ class tmsMixin(cllMixin):
             return self.dts
 
     def tms_to_typ(self, *args, spr=False, rtn=False, prm='%Y-%m-%d'):
+        """
+        columns from timestamp to other types.
+        >>> tst = dfz([{'A':'2019-04-21'},{'A':'2019/4/21'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.tms_to_typ('A','yday',rtn=True)
+             A
+        0  111
+        1  111
+        :param args: ([columns],[types]) or ({column:type,...})
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :param prm: if type in 'str', define the format of the column
+        :return: if rtn is True, return self.dts
+        """
         if type(args[0]) is dict and len(args) == 1:
             lst_clm = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
             lst_typ = lsz(list(args[0].values())).typ_to_lst(rtn=True)
@@ -664,14 +678,18 @@ class tmsMixin(cllMixin):
             lst_typ.typ_to_lst()
             lst_typ.cpy_tal(len(lst_clm), spr=True)
         for i in range(len(lst_clm)):
-            print(lst_clm, lst_typ)
-            print(self.dts)
-            self.dts[lst_clm[i]] = self.dts.apply(lambda x: dtz(x[lst_clm[i]]).dtt_to_typ(lst_typ[i], prm, rtn=True), axis=1)
+            if lst_typ[i] in ['w', 'm']:
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: dtz(x[lst_clm[i]]).dtt_to_prd(lst_typ[i], rtn=True), axis=1)
+            else:
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: dtz(x[lst_clm[i]]).dtt_to_typ(lst_typ[i], prm, rtn=True), axis=1)
         self.dts_nit()
         if spr:
             self.spr_nit()
         if rtn:
             return self.dts
+
 
 class pltMixin(cllMixin):
 
