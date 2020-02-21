@@ -550,21 +550,23 @@ class dtz(object):
         typ_tm_structtime,
     ]   # dtz.val's type
 
-    def __init__(self, val=None):
+    def __init__(self, val=None, prm='now'):
         """
         initiating dtz.val, dtz.typ.
         :param val: a datetime content in any type, None for datetime.datetime.now()
+        :param prm: 默认'now'指定当初始化为空时返回当前时间
         """
         self.__val, self.typ, self.len, self.fmt = None, None, None, None
-        self.__init_rst(val)
+        self.__init_rst(val, prm)
 
-    def __init_rst(self, val=None):
+    def __init_rst(self, val=None, prm='now'):
         """
         private reset initiation.
         :param val: a datetime content in any type, None for datetime.datetime.now()
+        :param prm: 默认'now'指定当初始化为空时返回当前时间
         :return: None
         """
-        if self.val is None:
+        if self.val is None and prm in ['now']:
             self.val = val if val is not None else dt_datetime.now()
 
     @property
@@ -649,7 +651,7 @@ class dtz(object):
             self.typ_to_dtt()
         if str_typ.lower() in ['datetime', 'dt_datetime', 'dt']:
             pass
-        if str_typ.lower() in ['date', 'dt_date']:
+        elif str_typ.lower() in ['date', 'dt_date']:
             self.val = self.val.date()
         elif str_typ.lower() in ['pd_structtime', 'pd_timestamp']:
             self.val = pd_to_datetime(dt_datetime.strftime(self.val, '%Y-%m-%d %H:%M:%S'), format='%Y-%m-%d %H:%M:%S')

@@ -13,7 +13,7 @@ from pandas import merge, concat
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
-from bsc import lsz
+from bsc import stz, lsz, dtz
 from ioz import ioz
 
 
@@ -299,7 +299,6 @@ class clmMixin(dfBsc):
             lst_typ.typ_to_lst()
             lst_typ.cpy_tal(len(lst_clm), spr=True)
             dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]   # args转字典
-        print(dct_typ)
         for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['lower', 'lwr']]:
             print(i_clm)
             self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].lower() if type(x[i_clm]) is str else x[i_clm], axis=1)
@@ -622,6 +621,57 @@ class tmsMixin(cllMixin):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(tmsMixin, self).__init__(dts, lcn, spr=spr)
 
+    def typ_to_tms(self, *args, spr=False, rtn=False):
+        """
+        columns' type from others to datetime.datetime
+        >>> tst = dfz([{'A':'1989-04-21'},{'A':'1989/4/21'}])
+        >>> tst.typ_to_dtf()
+        >>> tst.typ_to_tms('A','B')
+                   A          B
+        0 1989-04-21 1989-04-21
+        1 1989-04-21 1989-04-21
+        :param args: (columns) or (columns, newColumns) or ({columns: newColumns})
+        :param spr:
+        :param rtn:
+        :return:
+        """
+        if type(args[0]) is dict and len(args) == 1:
+            lst_old = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
+            lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
+        elif len(args) == 1:
+            lst_old = lsz(args[0]).typ_to_lst(rtn=True)
+            lst_new = lsz(args[0]).typ_to_lst(rtn=True)
+        else:
+            lst_old = lsz(args[0])
+            lst_new = lsz(args[1]).typ_to_lst(rtn=True)
+            lst_old.typ_to_lst()
+            lst_old.cpy_tal(len(lst_new), spr=True)
+        for i in range(len(lst_old)):
+            self.dts[lst_new[i]] = self.dts.apply(lambda x: dtz(x[lst_old[i]]).typ_to_dtt(rtn=True), axis=1)
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def tms_to_typ(self, *args, spr=False, rtn=False, prm='%Y-%m-%d'):
+        if type(args[0]) is dict and len(args) == 1:
+            lst_clm = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
+            lst_typ = lsz(list(args[0].values())).typ_to_lst(rtn=True)
+        else:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+            lst_typ = lsz(args[1])
+            lst_typ.typ_to_lst()
+            lst_typ.cpy_tal(len(lst_clm), spr=True)
+        for i in range(len(lst_clm)):
+            print(lst_clm, lst_typ)
+            print(self.dts)
+            self.dts[lst_clm[i]] = self.dts.apply(lambda x: dtz(x[lst_clm[i]]).dtt_to_typ(lst_typ[i], prm, rtn=True), axis=1)
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 class pltMixin(cllMixin):
 
