@@ -334,21 +334,21 @@ class lclMixin(ioBsc):
         :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
         :return: None
         """
-        if exists(path.join(*self.lcn.values())) and cvr is False:
-            print("stop: the txt %s already exists\n" % str(self.lcn.values()))
+        if exists(path.join(self.lcn['fld'], self.lcn['fls'])) and cvr is False:
+            print("stop: the txt %s already exists." % str(self.lcn.values()))
         elif type(self.dts) not in [list, typ_pd_DataFrame]:
-            print('stop: type of dts_npt needs [list, pd.DataFrame]')
+            print('stop: type of dts_npt needs [list, pd.DataFrame].')
         else:
             if self.typ is list:
                 lst_dts_mpt = [str(i_dcm) for i_dcm in self.dts]
             else:  # alter the type of a line in dataframe from slice to str
                 lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self.dts.to_dict(orient='split')['data']]
-            prc_txt_writer = open(path.join(*self.lcn.values()), typ, encoding='utf-8')
+            prc_txt_writer = open(path.join(self.lcn['fld'], self.lcn['fls']), typ, encoding='utf-8')
             for i in range(len(self.dts)):
                 prc_txt_writer.writelines(lst_dts_mpt[i])
                 prc_txt_writer.write('\n')
             prc_txt_writer.close()
-            print("info: success input dts to txt %s\n" % str(self.lcn.values()))
+            print("info: success input dts to txt %s." % str(self.lcn.values()))
 
     def lcl_xpt(self, *, typ='w', sep=2, cvr=True, ndx=False, prm='sheet1'):
         """
@@ -361,14 +361,14 @@ class lclMixin(ioBsc):
         :return: None
         """
         if self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
-            self.dts.to_excel(path.join(*self.lcn.values()), index=ndx)
+            self.dts.to_excel(path.join(self.lcn['fld'], self.lcn['fls']), index=ndx)
         elif self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
-            writer = ExcelWriter(path.join(*self.lcn.values()))
+            writer = ExcelWriter(path.join(self.lcn['fld'], self.lcn['fls']))
             self.dts.to_excel(writer, sheet_name=prm, index=ndx)
             writer.save()
             writer.close()
         elif self.lcn['fls'].rsplit('.')[1] in ['csv']:
-            self.dts.to_csv(path.join(*self.lcn.values()), encoding='UTF-8_sig')    # 不明原因的解码方式
+            self.dts.to_csv(path.join(self.lcn['fld'], self.lcn['fls']), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif self.lcn['fls'].rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
         else:
@@ -412,12 +412,18 @@ class mngMixin(ioBsc):
             flt_typ = -1 if typ in ['max'] else 1
             dct_qry = {} if not dct_qry else dct_qry
             dct_clm = dcz().typ_to_dct(lst_clm, 1, rtn=True) if lst_clm else None
-            mtx_stt = self._myCln.find(dct_qry, dct_clm).sort([(prm, flt_typ)]).limit(100)
-            lst_xpt = []
-            for dct_xpt in mtx_stt:
-                if dct_xpt not in lst_xpt:
-                    lst_xpt.extend([dct_xpt])
-            return lst_xpt[0][prm]
+            try:                # 当对目标collection的find无异常时
+                mtx_stt = self._myCln.find(dct_qry, dct_clm).sort([(prm, flt_typ)]).limit(100)
+                lst_xpt = []
+                for dct_xpt in mtx_stt:
+                    if dct_xpt not in lst_xpt:
+                        lst_xpt.extend([dct_xpt])
+                if lst_xpt:
+                    return lst_xpt[0][prm]
+                else:           # 当目标collection的find未找到document时返回空
+                    return None
+            except KeyError:    # 当目标collection导出失败时返回空
+                return None
         else:
             return [self._myMdb.name, self._myCln.name, list(self._myCln.find_one().keys())]
 

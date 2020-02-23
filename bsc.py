@@ -11,9 +11,11 @@ basic type's alteration.
 from datetime import datetime as dt_datetime
 from pandas import to_datetime as pd_to_datetime
 from pandas._libs.tslib import Timestamp as typ_pd_Timestamp
+from pandas._libs.tslibs.nattype import NaTType as pd_NaT
 from datetime import date as typ_dt_date, time as typ_dt_time, timedelta as typ_dt_timedelta
 from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mktime as tm_mktime
 from re import search as re_search
+from math import isnan as math_isnan
 from calendar import monthrange     # how many days in any month
 from numpy import array as np_array, ndarray as typ_np_ndarray
 from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
@@ -539,10 +541,12 @@ class dtz(object):
     """
     __slots__ = ('__val', 'typ', 'len', 'fmt',)
     lst_typ_dtz = [
+        type,
         str,
         stz,
         int,
         float,
+        pd_NaT,
         dt_datetime,
         typ_dt_date,
         typ_dt_time,
@@ -550,24 +554,26 @@ class dtz(object):
         typ_tm_structtime,
     ]   # dtz.val's type
 
-    def __init__(self, val=None, prm='now'):
+    def __init__(self, val=None, prm=None):
         """
         initiating dtz.val, dtz.typ.
         :param val: a datetime content in any type, None for datetime.datetime.now()
-        :param prm: 默认'now'指定当初始化为空时返回当前时间
+        :param prm: 默认None不指定当初始化为空时返回当前时间，任意赋值（如'now'）则赋值当前时间
         """
         self.__val, self.typ, self.len, self.fmt = None, None, None, None
         self.__init_rst(val, prm)
 
-    def __init_rst(self, val=None, prm='now'):
+    def __init_rst(self, val=None, prm=None):
         """
         private reset initiation.
         :param val: a datetime content in any type, None for datetime.datetime.now()
-        :param prm: 默认'now'指定当初始化为空时返回当前时间
+        :param prm: 默认None不指定当初始化为空时返回当前时间，任意赋值（如'now'）则赋值当前时间
         :return: None
         """
-        if self.val is None and prm in ['now']:
-            self.val = val if val is not None else dt_datetime.now()
+        if self.val == 'now' or (self.val is None and prm is not None):
+            self.val = dt_datetime.now()
+        else:
+            self.val = val
 
     @property
     def val(self):
@@ -620,6 +626,8 @@ class dtz(object):
         """
         if self.typ in [dt_datetime]:
             pass
+        elif self.val is None or self.typ in [pd_NaT]:
+            self.val = None
         elif self.typ in [typ_dt_date]:
             self.val = dt_datetime.combine(self.val, typ_dt_time())
         elif self.typ in [typ_pd_Timestamp]:
@@ -627,12 +635,19 @@ class dtz(object):
         elif self.typ in [typ_tm_structtime]:
             self.val = dt_datetime.strptime(tm_strftime('%Y-%m-%d %H:%M:%S', self.val), '%Y-%m-%d %H:%M:%S')
         elif self.typ in [int, float]:
-            self.val = dt_datetime.fromtimestamp(int(str(self.val).rsplit('.')[0]))
+            if not math_isnan(self.val):    # 正常情况：非空float或int
+                self.val = dt_datetime.fromtimestamp(int(str(self.val).rsplit('.')[0]))
+            else:                           # 对np.nan赋空
+                self.val = None
         elif self.typ in [str, stz]:
             if [True for i in self.fmt if i in ['float', 'int']]:
                 self.val = dt_datetime.fromtimestamp(int(self.val.rsplit('.')[0]))
             else:
-                self.val = dt_datetime.strptime(self.val, self.fmt[0])
+                try:                # 正常情况：匹配正则表达式后转为datatime
+                    self.val = dt_datetime.strptime(self.val, self.fmt[0])
+                except IndexError:  # 对无法找到合适正则匹配（如''空字符串）则赋空
+                    self.val = None
+                    print('info: %s cannot convert to datetime type.' % str(self.val))
         else:
             raise TypeError('type of value not in [dt_datetime, dt_date, tm_structtime, pd_Timestamp, int, float, str]')
         if rtn:
@@ -649,7 +664,7 @@ class dtz(object):
         """
         if self.typ not in [dt_datetime]:
             self.typ_to_dtt()
-        if str_typ.lower() in ['datetime', 'dt_datetime', 'dt']:
+        if str_typ.lower() in ['datetime', 'dt_datetime', 'dt'] or self.val is None:
             pass
         elif str_typ.lower() in ['date', 'dt_date']:
             self.val = self.val.date()
@@ -683,7 +698,7 @@ class dtz(object):
             else:
                 self.val = dt_datetime.strftime(self.val, str_fmt)
         else:
-            raise KeyError("str_typ needs ['str','int','float','datetime','pd_timestamp','tm_structtime']")
+            raise KeyError("str_typ needs [None,NaN,'str','int','float','datetime','pd_timestamp','tm_structtime']")
         if rtn:
             return self.val
 
@@ -696,10 +711,13 @@ class dtz(object):
         """
         if self.typ not in [dt_datetime]:
             self.typ_to_dtt()
-        slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
-        slf_dmh = self.val.timetuple().tm_mon                   # 得到month
-        int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
-        self.val = "%s%s%s" % (str(slf_dwk[0]), str_kwd, str(int_kwd).zfill(2))
+        if self.val is not None:
+            slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
+            slf_dmh = self.val.timetuple().tm_mon                   # 得到month
+            int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
+            self.val = "%s%s%s" % (str(slf_dwk[0]), str_kwd, str(int_kwd).zfill(2))
+        else:
+            print('info: None cannot convert to "%y[wm]%d" format.')
         if rtn:
             return self.val
 
@@ -723,7 +741,7 @@ class dtz(object):
             flt_dlt = 8 + flt_dlt if flt_dlt < 0 else flt_dlt
             self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
         else:
-            raise AttributeError('%s not in [\'%Yw%w\',\'%yw%w\']' % self.fmt)
+            print('info: %s, %s not in [\'%Yw%w\',\'%yw%w\']' % (self.val, self.fmt))
         if rtn:
             return self.val
 
@@ -748,7 +766,7 @@ class dtz(object):
                 int_day = flt_dlt if flt_dlt > 0 else int_max + 1 + flt_dlt
                 self.val = dt_datetime(int_dyr, int_dmh, int_day)
         else:
-            raise AttributeError('%s not in [\'%Ym%m\',\'%ym%m\']' % self.fmt)
+            print('info: %s, %s not in [\'%Ym%m\',\'%ym%m\']' % (self.val, self.fmt))
         if rtn:
             return self.val
 
@@ -777,7 +795,10 @@ class dtz(object):
         """
         if self.typ not in [dt_datetime]:
             self.typ_to_dtt()
-        self.val += typ_dt_timedelta(days=flt_dlt)
+        if self.val is not None:
+            self.val += typ_dt_timedelta(days=flt_dlt)
+        else:
+            print('info: None cannot shift.')
         if rtn:
             return self.val
 

@@ -300,7 +300,6 @@ class clmMixin(dfBsc):
             lst_typ.cpy_tal(len(lst_clm), spr=True)
             dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]   # args转字典
         for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['lower', 'lwr']]:
-            print(i_clm)
             self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].lower() if type(x[i_clm]) is str else x[i_clm], axis=1)
         for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['upper', 'ppr']]:
             self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].upper() if type(x[i_clm]) is str else x[i_clm], axis=1)
@@ -475,11 +474,13 @@ class dcmMixin(dfBsc):
         :param prm:  remain documents at least <prm> cells not nan, default None
         :return: if rtn is True, return self.dts
         """
+        flt_bgn = self.len
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if not prm else lst_clm
         self.dts = self.dts.dropna(axis=0,          # 0 for index and 1 for columns
                                    how='any',       # any and all
                                    thresh=prm,      # optional Keep only the rows with at least 2 non-NA values
                                    subset=lst_clm)  # optional columns in target
+        print('info: %i remains from %i by dropping.' % (flt_bgn, self.len))
         if spr:
             self.spr_nit()
         if rtn:
