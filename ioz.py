@@ -17,13 +17,13 @@ from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGrou
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
 from os import path
 from os.path import exists
-from bsc import stz, lsz, dcz
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
 from requests import post
 from json import loads, dumps, JSONDecodeError
+from .bsc import stz, lsz, dcz
 
 
 class ioBsc(pd_DataFrame):

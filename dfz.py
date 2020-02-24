@@ -13,8 +13,8 @@ from pandas import merge, concat
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
-from bsc import stz, lsz, dtz
-from ioz import ioz
+from .bsc import stz, lsz, dtz
+from .ioz import ioz
 
 
 class dfBsc(ioz):
