@@ -8,21 +8,36 @@ basic type's alteration.
 @alters:
 2020-01-14 zoharslong
 """
+
 from datetime import datetime as dt_datetime
 from pandas import to_datetime as pd_to_datetime
 from pandas._libs.tslib import Timestamp as typ_pd_Timestamp
 from pandas._libs.tslibs.nattype import NaTType as pd_NaT
 from datetime import date as typ_dt_date, time as typ_dt_time, timedelta as typ_dt_timedelta
 from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mktime as tm_mktime
-from re import search as re_search
+from re import search as re_search, sub as re_sub, match as re_match
 from math import isnan as math_isnan
 from calendar import monthrange     # how many days in any month
+from random import randint
+from hashlib import md5 as hsh_md5
 from numpy import array as np_array, ndarray as typ_np_ndarray
 from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
 from pandas import DataFrame as pd_DataFrame
+dct_ncd_int = {
+    '0': ['IJ', 'KL', 'MN', 'OP', 'QR'],
+    '1': ['GH', 'IJ', 'KL', 'MN', 'OP'],
+    '2': ['EF', 'GH', 'IJ', 'KL', 'MN'],
+    '3': ['CD', 'EF', 'GH', 'IJ', 'KL'],
+    '4': ['AB', 'CD', 'EF', 'GH', 'IJ'],
+    '5': ['ZY', 'XW', 'VU', 'TS', 'AB'],
+    '6': ['XW', 'VU', 'TS', 'RQ', 'CD'],
+    '7': ['VU', 'TS', 'RQ', 'AB', 'EF'],
+    '8': ['TS', 'RQ', 'PO', 'CD', 'GH'],
+    '9': ['RQ', 'PO', 'AB', 'EF', 'ZY'],
+}
 dct_tms_fTr = {
     '%Y-%m-%d %H:%M:%S ': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2} $',
     '%Y-%m-%d %H:%M:%S': '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2} [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}$',
@@ -58,9 +73,9 @@ class stz(str):
         :param val: 指定的值
         """
         super().__init__()
-        self.__val = val, self.rgx, self.fmt = val, [], []
+        self.__val, self.rgx, self.fmt, self.cod = val, None, None, None
 
-    def add_rgx(self, lst_rgx=None, rtn=False):
+    def add_rgx(self, *, lst_rgx=None, rtn=False):
         """
         match regex.
         从传入的正则列表中筛选出符合类的正则表达式组成列表.
@@ -74,7 +89,7 @@ class stz(str):
         if rtn:
             return self.rgx
 
-    def add_fmt(self, dct_rgx=None, rtn=False):
+    def add_fmt(self, *, dct_rgx=None, rtn=False):
         """
         match format.
         从传入的格式-正则字典中筛选出符合类的格式组成列表.
@@ -89,6 +104,65 @@ class stz(str):
             self.fmt.append(list(dct_rgx.keys())[list(dct_rgx.values()).index(self.rgx[i])])
         if rtn:
             return self.fmt
+
+    def ncd_int(self, *, dct_ncd=None, rtn=False):
+        """
+        数字类字符串加密，特别用于电话号码.
+        :param dct_ncd: 默认转换字典dct_ncd_int
+        :param rtn: if rtn, return the target self.cod, default False
+        :return: return self.cod
+        """
+        try:
+            if re_match("^\d+?$", self) is not None:
+                self.cod = self
+                dct_ncd = dct_ncd_int if dct_ncd is None else dct_ncd
+                int_vrt = randint(0, len(dct_ncd['0']) - 1)
+                lst_vrt = [dct_ncd[str(i)][int_vrt] for i in range(0, 10)]
+                for i in range(0, 10):
+                    self.cod = re_sub(str(i), lst_vrt[i], self.cod)
+                self.cod += str(int_vrt)
+            if rtn:
+                return self.cod
+        except TypeError:
+            if rtn:
+                return self.cod
+
+    def dcd_int(self, *, dct_dcd=None, rtn=False):
+        """
+        数字类字符串解密.
+        :param dct_dcd: 默认转换字典dct_ncd_int
+        :param rtn: if rtn, return the target self.cod, default False
+        :return: return self.cod
+        """
+        try:
+            if re_match("^[A-Z]+[0-9]+$", self) is not None:
+                self.cod = self
+                dct_ncd = dct_ncd_int if dct_dcd is None else dct_dcd
+                int_vrt = int(re_sub('[A-Z]', '', self.cod))
+                lst_vrt = [dct_ncd[str(i)][int_vrt] for i in range(0, 10)]
+                self.cod = re_sub('[0-9]', '', self.cod)
+                for i in range(0, 10):
+                    self.cod = re_sub(lst_vrt[i], str(i), self.cod)
+            if rtn:
+                return self.cod
+        except TypeError:
+            if rtn:
+                return self.cod
+
+    def ncd_md5(self, *, prm='zohar', rtn=False):
+        """
+        使用哈希MD5对文本进行加密后转化为唯一标记.
+        :param prm: the encoding code
+        :param rtn: if rtn is True, return self.cod
+        :return: a str of code
+        """
+        if type(self) is str:
+            self.cod = self
+            hsh = hsh_md5(bytes(prm, encoding='utf-8'))
+            hsh.update(bytes(self.cod, encoding="utf-8"))
+            self.cod = hsh.hexdigest()
+        if rtn:
+            return self.cod
 
 
 class lsz(list):
