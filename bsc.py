@@ -97,8 +97,9 @@ class stz(str):
         :param rtn: return or not, default False
         :return: None
         """
-        if len(self.rgx) <= 0:
+        if self.rgx is None or len(self.rgx) <= 0:
             self.add_rgx()
+        self.fmt = [] if self.fmt is None else self.fmt
         dct_rgx = dct_tms_fTr if dct_rgx is None else dct_rgx
         for i in range(len(self.rgx)):
             self.fmt.append(list(dct_rgx.keys())[list(dct_rgx.values()).index(self.rgx[i])])
