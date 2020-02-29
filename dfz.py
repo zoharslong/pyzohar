@@ -404,10 +404,10 @@ class clmMixin(dfBsc):
             lst_typ.cpy_tal(len(lst_clm), spr=True)
             dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]                   # args转字典
         lst_flt = [i for i in dct_typ.keys() if dct_typ[i] in [int, 'int', float, 'float']]
-        self.ltr_clm_rpc(lst_flt, ['NA', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
+        self.ltr_clm_rpc(lst_flt, ['NA', 'N/A', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
         self.dts = self.dts.astype(dct_typ)  # 核心转换
         lst_str = [i for i in dct_typ.keys() if dct_typ[i] in [str, 'str']]
-        self.ltr_clm_rpc(lst_str, ['NA', 'nan', 'null', 'None', None], [''])            # 转str列的空值处理
+        self.ltr_clm_rpc(lst_str, ['NA', 'N/A', 'nan', 'null', 'None', None], [''])            # 转str列的空值处理
         self.dts_nit(False)
         if spr:
             self.spr_nit()
@@ -702,6 +702,3 @@ class dfz(tmsMixin, pltMixin):
 
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(dfz, self).__init__(dts, lcn, spr=spr)
-
-
-print('info: multiple io\'s alteration ready.')

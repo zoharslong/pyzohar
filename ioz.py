@@ -671,6 +671,3 @@ class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(ioz, self).__init__(dts, lcn, spr=spr)
-
-
-print('info: multiple io\'s alteration ready.')

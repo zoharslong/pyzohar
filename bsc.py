@@ -876,6 +876,3 @@ class dtz(object):
             print('info: None cannot shift.')
         if rtn:
             return self.val
-
-
-print('info: basic types\' alteration ready.')
