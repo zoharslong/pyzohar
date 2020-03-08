@@ -10,14 +10,11 @@ basic type's alteration.
 """
 
 from datetime import datetime as dt_datetime
-from pandas import to_datetime as pd_to_datetime
-from pandas._libs.tslib import Timestamp as typ_pd_Timestamp
-from pandas._libs.tslibs.nattype import NaTType as pd_NaT
 from datetime import date as typ_dt_date, time as typ_dt_time, timedelta as typ_dt_timedelta
 from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mktime as tm_mktime
+from calendar import monthrange     # how many days in any month
 from re import search as re_search, sub as re_sub, match as re_match
 from math import isnan as math_isnan
-from calendar import monthrange     # how many days in any month
 from random import randint
 from hashlib import md5 as hsh_md5
 from numpy import array as np_array, ndarray as typ_np_ndarray
@@ -25,7 +22,10 @@ from pandas.core.series import Series as typ_pd_Series                  # 定义
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
+from pandas._libs.tslibs.nattype import NaTType as pd_NaT
+from pandas._libs.tslib import Timestamp as typ_pd_Timestamp
 from pandas import DataFrame as pd_DataFrame
+from pandas import to_datetime as pd_to_datetime
 dct_ncd_int = {
     '0': ['IJ', 'KL', 'MN', 'OP', 'QR'],
     '1': ['GH', 'IJ', 'KL', 'MN', 'OP'],
