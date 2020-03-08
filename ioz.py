@@ -627,7 +627,10 @@ class apiMixin(ioBsc):
         mdl_rqt = post(self.lcn['url'], data=self.lcn['pst'], headers=self.lcn['hdr'], timeout=300)
         mdl_rqt.encoding = "utf-8"
         try:
-            self.dts = loads(mdl_rqt.text)
+            try:
+                self.dts = loads(mdl_rqt.text)
+            except JSONDecodeError:
+                self.dts = mdl_rqt.text
             if spr:
                 self.spr_nit()
             if rtn:
