@@ -414,6 +414,21 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
+    def cod_clm_int(self, lst_clm, spr=False, rtn=False, prm='encode'):
+        if prm in ['encode', 'ncd']:
+            self.ltr_clm_typ(lst_clm, 'str')
+            self.ltr_clm_rpc(lst_clm, {'\.\d+': ''}, prm='prt')
+            for i in lst_clm:
+                self.dts[i] = self.dts.apply(lambda x: stz(x[i]).ncd_int(rtn=True), axis=1)
+        elif prm in ['decode', 'dcd']:
+            for i in lst_clm:
+                self.dts[i] = self.dts.apply(lambda x: stz(x[i]).dcd_int(rtn=True), axis=1)
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
 
 class dcmMixin(dfBsc):
 
@@ -504,7 +519,7 @@ class dcmMixin(dfBsc):
         len_bfr = self.len
         self.dts = self.dts.drop_duplicates(subset=lst_dpl, keep=prm)
         if prn:
-            print("info: <%s> drop duplicate documents, %.i in total %.i left." % (self, len_bfr, self.len))
+            print("info: drop duplicate documents, %.i in total %.i left, from <%s>." % (len_bfr, self.len, self))
         if spr:
             self.spr_nit()
         if rtn:
