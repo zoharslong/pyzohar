@@ -1,4 +1,4 @@
-HelloWorld.
+HelloWorld.\n
 These are private classes on own projects for programming faster.\n
 -----example-----\n
 from pyzohar.dfz import dfz\n
