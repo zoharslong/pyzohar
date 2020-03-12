@@ -66,6 +66,14 @@ class stz(str):
     ['^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}$']
     >>> stz('1989-02-14').add_fmt(rtn=True)     # generate format of the string content
     ['%Y-%m-%d']
+    >>> stz('15814079977').ncd_int(rtn=True)
+    'IJXWRQIJCDKLTSPOPOTSTS1'
+    >>> stz('IJXWRQIJCDKLTSPOPOTSTS1').dcd_int(rtn=True)
+    '15814079977'
+    >>> stz('15814079977').ncd_md5(rtn=True)
+    'f8ceb85867e2df236e11211366be6479'
+    >>> stz('15814079977').ncd_cvr([3,7])
+    '158****9977'
     """
     def __init__(self, val=''):
         """
@@ -166,11 +174,12 @@ class stz(str):
         if rtn:
             return self.cod
 
-    def ncd_cvr(self, lst_cvr):
+    def ncd_cvr(self, lst_cvr, *, rtn=True):
         """
         encode by covering '*'
-        :param lst_cvr:
-        :return:
+        :param lst_cvr: cover targeted index by *
+        :param rtn: if rtn is True, return self.cod
+        :return: a str of code
         """
         bgn = lst_cvr[0]
         end = len(self) + 1 + lst_cvr[1] if lst_cvr[1] < 0 else lst_cvr[1]
@@ -178,12 +187,16 @@ class stz(str):
         for i in range(bgn, end):
             if len(lst) >= i:
                 lst[i] = '*'
-        return ''.join(lst)
+        self.cod = ''.join(lst)
+        if rtn:
+            return self.cod
 
 
 class lsz(list):
     """
     type list altered by zoharslong.
+    >>> lsz([[1,2,3],[1,2]]).edg_of_len(rtn=True)
+    [2, 3]
     >>> lsz({'A':1,'B':2,'C':3}).typ_to_lst(rtn=True)
     [('A', 1), ('B', 2), ('C', 3)]
     >>> lsz([1,2,3]).lst_to_typ('dict', ['A','B','C'], rtn=True)
