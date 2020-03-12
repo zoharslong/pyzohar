@@ -205,11 +205,11 @@ class ioBsc(pd_DataFrame):
         :return: None
         """
         self.iot = []
-        if [True for i in self.lcn.keys() if i in ['fld', 'fls']] == [True, True]:
+        if [True for i in self.lcn.keys() if i in ['fld']] == [True]:
             self.iot.append('lcl')
         if [True for i in self.lcn.keys() if i in ['sdb']] == [True]:
             self.iot.append('sql')
-        if [True for i in self.lcn.keys() if i in ['mdb', 'cln']] == [True, True]:
+        if [True for i in self.lcn.keys() if i in ['mdb']] == [True]:
             self.iot.append('mng')
         if [True for i in self.lcn.keys() if i in ['url']] == [True]:
             self.iot.append('api')
@@ -319,7 +319,7 @@ class lclMixin(ioBsc):
                 self.mpt_xcl(fls=i_fls, hdr=hdr, sht=sht)
             elif i_fls.rsplit('.')[1] in ['txt']:
                 pass
-            dtf_mrg = concat([dtf_mrg, self.dts], ignore_index=True)    # 忽视index的多文件纵向拼接
+            dtf_mrg = concat([dtf_mrg, self.dts], ignore_index=True, sort=False)    # 忽视index的多文件纵向拼接
         self.dts = dtf_mrg
         if spr:
             self.spr_nit()

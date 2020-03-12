@@ -414,7 +414,8 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def cod_clm_int(self, lst_clm, spr=False, rtn=False, prm='encode'):
+    def cod_clm_int(self, lst_clm, *, spr=False, rtn=False, prm='encode'):
+        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
         if prm in ['encode', 'ncd']:
             self.ltr_clm_typ(lst_clm, 'str')
             self.ltr_clm_rpc(lst_clm, {'\.\d+': ''}, prm='prt')
@@ -423,6 +424,35 @@ class clmMixin(dfBsc):
         elif prm in ['decode', 'dcd']:
             for i in lst_clm:
                 self.dts[i] = self.dts.apply(lambda x: stz(x[i]).dcd_int(rtn=True), axis=1)
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def cod_clm_cvr(self, lst_clm, *, spr=False, rtn=False, prm=None):
+        prm = [1, -1] if prm is None else prm
+        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
+        self.ltr_clm_typ(lst_clm, 'str')
+        for i in lst_clm:
+            self.dts[i] = self.dts.apply(lambda x: stz(x[i]).ncd_cvr(prm), axis=1)
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def cod_clm_md5(self, *args, spr=False, rtn=False, prm=None):
+        lst_old = lsz(args[0])
+        lst_old.typ_to_lst(spr=True)
+        if len(args) == 1:
+            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+        else:
+            lst_clm = lsz(args[1]).typ_to_lst(rtn=True)
+        lst_old.cpy_tal(len(lst_clm), spr=True)
+        self.ltr_clm_typ(lst_old.seq, 'str')
+        for i in range(len(lst_clm)):
+            self.dts[lst_clm[i]] = self.dts.apply(lambda x: stz(x[lst_old[i]]).ncd_md5(rtn=True, prm=prm), axis=1)
         self.dts_nit()
         if spr:
             self.spr_nit()
@@ -495,7 +525,7 @@ class dcmMixin(dfBsc):
                                    how='any',       # any and all
                                    thresh=prm,      # optional Keep only the rows with at least 2 non-NA values
                                    subset=lst_clm)  # optional columns in target
-        print('info: %i remains from %i by dropping.' % (flt_bgn, self.len))
+        print('info: %i remains from %i by dropping.' % (self.len, flt_bgn))
         if spr:
             self.spr_nit()
         if rtn:
@@ -545,33 +575,30 @@ class dcmMixin(dfBsc):
         else:
             lst_clm = lsz(args[0])
             lst_ctt = lsz(args[1])
-        lst_clm.typ_to_lst()
-        lst_ctt.typ_to_lst()
+        lst_clm.typ_to_lst(spr=True)
+        lst_ctt.typ_to_lst(spr=True)
         if len(lst_clm) == 1 and type(lst_ctt[0]) not in [list, lsz]:
             lst_ctt = lsz([lst_ctt.seq])            # 当仅检查单列时，需要控制其待识别内容为唯一个列表
         lst_clm.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).edg_of_len(rtn=True)[1], spr=True)
         lst_ctt.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).edg_of_len(rtn=True)[1], spr=True)
         for i in range(len(lst_clm)):
-            if not prm or prm in ['keep', 'kep']:   # 当not drop 或prm='keep'时，保留完全匹配的行
+            if prm is False or prm in ['keep', 'kep']:   # 当not drop 或prm='keep'时，保留完全匹配的行
                 self.dts = self.dts.loc[self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
-            elif prm or prm in ['drop', 'drp']:     # 当drop 或prm='drop'时，删除完全匹配的行
+            elif prm is True or prm in ['drop', 'drp']:     # 当drop 或prm='drop'时，删除完全匹配的行
                 self.dts = self.dts.loc[~self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
             elif prm in ['partDrop', 'prtDrp']:     # 当prm='partDrop'时，删除正则匹配的行
-                lst_ndx = [i for j in lst_ctt for i in self.dts.index if
-                           re_search(j, self.dts.loc[i, lst_clm[i]])]
+                lst_ndx = [k for j in lst_ctt[i] for k in self.dts.index if
+                           re_search(j, str(self.dts.loc[k, lst_clm[i]]))]
                 self.dts = self.dts.drop(lst_ndx, axis=0)
             elif prm in ['partKeep', 'prtKep']:     # 当prm='partKeep'时，保留正则匹配的行
-                lst_ndx = [i for j in lst_ctt for i in self.dts.index if
-                           re_search(j, self.dts.loc[i, lst_clm[i]])]
+                lst_ndx = [k for j in lst_ctt[i] for k in self.dts.index if
+                           re_search(j, str(self.dts.loc[k, lst_clm[i]]))]
                 lst_ndx = [i for i in self.dts.index if i not in lst_ndx]
                 self.dts = self.dts.drop(lst_ndx, axis=0)
         if spr:
             self.spr_nit()
         if rtn:
             return self.dts
-
-    def __end(self):
-        pass
 
 
 class cllMixin(dcmMixin, clmMixin):
@@ -603,7 +630,7 @@ class cllMixin(dcmMixin, clmMixin):
         """
         if prm in ['vertical', 'vrl']:              # merging vertically
             lst_dtf = []
-            if self.dts:
+            if self.len > 0:
                 lst_dtf.extend([self.dts])
             lst_dtf.extend([dtf_mrg])
             if args:

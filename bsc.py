@@ -126,7 +126,7 @@ class stz(str):
                 return self.cod
         except TypeError:
             if rtn:
-                return self.cod
+                return self
 
     def dcd_int(self, *, dct_dcd=None, rtn=False):
         """
@@ -148,22 +148,37 @@ class stz(str):
                 return self.cod
         except TypeError:
             if rtn:
-                return self.cod
+                return self
 
-    def ncd_md5(self, *, prm='zohar', rtn=False):
+    def ncd_md5(self, *, prm=None, rtn=False):
         """
         使用哈希MD5对文本进行加密后转化为唯一标记.
         :param prm: the encoding code
         :param rtn: if rtn is True, return self.cod
         :return: a str of code
         """
-        if type(self) is str:
-            self.cod = self
+        prm = 'zohar' if not prm else prm
+        self.cod = self
+        if type(self) in [str, stz]:
             hsh = hsh_md5(bytes(prm, encoding='utf-8'))
             hsh.update(bytes(self.cod, encoding="utf-8"))
             self.cod = hsh.hexdigest()
         if rtn:
             return self.cod
+
+    def ncd_cvr(self, lst_cvr):
+        """
+        encode by covering '*'
+        :param lst_cvr:
+        :return:
+        """
+        bgn = lst_cvr[0]
+        end = len(self) + 1 + lst_cvr[1] if lst_cvr[1] < 0 else lst_cvr[1]
+        lst = list(self)
+        for i in range(bgn, end):
+            if len(lst) >= i:
+                lst[i] = '*'
+        return ''.join(lst)
 
 
 class lsz(list):
