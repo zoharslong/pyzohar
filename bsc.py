@@ -649,6 +649,7 @@ class dtz(object):
         stz,
         int,
         float,
+        list,
         pd_NaT,
         dt_datetime,
         typ_dt_date,
@@ -818,7 +819,7 @@ class dtz(object):
             slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
             slf_dyr = self.val.timetuple().tm_year                  # 得到year
             slf_dmh = self.val.timetuple().tm_mon                   # 得到month
-            int_kyr = slf.dwk[0] if str_kwd == 'w' else slf_dyr     # 根据str_kwd判断标志年
+            int_kyr = slf_dwk[0] if str_kwd == 'w' else slf_dyr     # 根据str_kwd判断标志年
             int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
             self.val = "%s%s%s" % (str(int_kyr), str_kwd, str(int_kwd).zfill(2))
         else:
@@ -888,6 +889,24 @@ class dtz(object):
             self.dmh_to_dtt(flt_dlt)
         else:
             raise AttributeError('%s is not in format [\'%Yw%w\',\'%yw%w\',\'%Ym%m\',\'%ym%m\']')
+        if rtn:
+            return self.val
+
+    def edg_of_prd(self, lst_flt, str_typ='str', str_fmt='%Y-%m-%d', *, rtn=False):
+        """
+        export the edg of period value in format '[0-9]{2,4}[wm][0-9]{2}'.
+        :param lst_flt: a list of float in self.val period
+        :param str_typ: type of the result
+        :param str_fmt: format of the result if type is str
+        :param rtn: return the result if True, default False
+        :return: return the result if rtn is True
+        """
+        lst_prd, prd_tmp = [], self.val
+        for i in lsz(lst_flt).typ_to_lst(rtn=True):
+            self.val = prd_tmp
+            self.prd_to_dtt(i)
+            lst_prd.append(self.dtt_to_typ(str_typ, str_fmt, rtn=True))
+        self.val = lst_prd
         if rtn:
             return self.val
 
