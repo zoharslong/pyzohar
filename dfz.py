@@ -9,7 +9,7 @@ dataframe operation.
 2020-02-16 zoharslong
 """
 from numpy import nan as np_nan
-from pandas import merge, concat
+from pandas import merge, concat, DataFrame
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
@@ -217,6 +217,26 @@ class clmMixin(dfBsc):
             self.dts[lst_new[i]] = [re_findall(prm[i], j)[0] if re_search(prm[i], j) else None for
                                     j in self.dts[lst_clm[i]]]
         self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def add_clm_dtf(self, str_clm, *, spr=False, rtn=False):
+        """
+        若dataframe中某列中为形如[{},{},..]的可转化为dataframe的结构，则解出拼接至原dataframe，导致原dataframe的行列均扩增
+        :param str_clm: 列单元格内容为[{},{},..]格式的列名
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: None
+        """
+        dtf_dtl = DataFrame([])
+        for i in range(self.len):
+            len_tmp = len(self.dts[str_clm][i]) if type(self.dts[str_clm][i]) is list else 1  # 兼容{}, [{},{}]两种输入
+            dtf_i = DataFrame(self.dts[str_clm][i], index=[int(i)]*len_tmp)
+            dtf_dtl = concat([dtf_dtl, dtf_i], axis=0, sort=False)
+        self.dts.drop([str_clm], axis=1, inplace=True)
+        self.dts = concat([dtf_dtl, self.dts], axis=1, join='outer', sort=False)
         if spr:
             self.spr_nit()
         if rtn:

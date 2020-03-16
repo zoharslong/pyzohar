@@ -816,9 +816,11 @@ class dtz(object):
             self.typ_to_dtt()
         if self.val is not None:
             slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
+            slf_dyr = self.val.timetuple().tm_year                  # 得到year
             slf_dmh = self.val.timetuple().tm_mon                   # 得到month
+            int_kyr = slf.dwk[0] if str_kwd == 'w' else slf_dyr     # 根据str_kwd判断标志年
             int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
-            self.val = "%s%s%s" % (str(slf_dwk[0]), str_kwd, str(int_kwd).zfill(2))
+            self.val = "%s%s%s" % (str(int_kyr), str_kwd, str(int_kwd).zfill(2))
         else:
             print('info: None cannot convert to "%y[wm]%d" format.')
         if rtn:
