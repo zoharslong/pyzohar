@@ -214,7 +214,7 @@ class clmMixin(dfBsc):
         prm.typ_to_lst()
         prm.cpy_tal(len(lst_clm), spr=True)
         for i in range(len(lst_clm)):
-            self.dts[lst_new[i]] = [re_findall(prm[i], j)[0] if re_search(prm[i], j) else None for
+            self.dts[lst_new[i]] = [re_findall(prm[i], j)[0] if type(j) in [str] and re_search(prm[i], j) else None for
                                     j in self.dts[lst_clm[i]]]
         self.dts_nit()
         if spr:
