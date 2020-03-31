@@ -115,16 +115,19 @@ class clmMixin(dfBsc):
         :param prm: method of fill na, in ['backfill', 'bfill', 'pad', 'ffill', None]
         :return: if rtn is True, return self.dts
         """
-        lst_clm = lsz(args[0])
-        if len(args) > 1 and type(args[0]) in [list, str]:
-            lst_clm.typ_to_lst(spr=True)
-            lst_clm_fll = lsz(args[1])
-            lst_clm_fll.typ_to_lst(spr=True)
-            flt_len = lsz([lst_clm, lst_clm_fll]).edg_of_len(rtn=True)[1]
-            lst_clm.cpy_tal(flt_len, spr=True)
-            lst_clm_fll.cpy_tal(flt_len, spr=True)
-            lst_clm.lst_to_typ('dct', lst_clm_fll)
-        self.dts = self.dts.fillna(value=lst_clm.seq, method=prm)
+        lst_clm = lsz(None)
+        if args:
+            if len(args) > 1 and type(args[0]) in [list, str]:
+                lst_fnl = lsz()
+                lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
+                lst_clm_fll = lsz(args[1])
+                lst_clm_fll.typ_to_lst(spr=True)
+                fnl = lst_fnl.lst_to_typ('dct', lst_clm, lst_clm_fll.cpy_tal(len(lst_clm), rtn=True), rtn=True)[0]
+            else:
+                fnl = args[0]
+        else:
+            fnl = None
+        self.dts = self.dts.fillna(value=fnl, method=prm)
         if spr:
             self.spr_nit()
         if rtn:
@@ -630,13 +633,13 @@ class cllMixin(dcmMixin, clmMixin):
         """merge dataframe horizontally or vertically.
         >>> import pandas as pd
         >>> tst = dfz()
-        >>> tst.mrg_dtf_hrl(pd.DataFrame([{"A":1}]), pd.DataFrame([{"A":2}]), prm='vrl', rtn=True)
+        >>> tst.mrg_dtf(pd.DataFrame([{"A":1}]), pd.DataFrame([{"A":2}]), prm='vrl', rtn=True)
            A
         0  1
         1  2
         >>> tst = dfz([{'A':1,'B':'a'},{'A':2,'B':'b'}])
         >>> tst.typ_to_dtf()
-        >>> tst.mrg_dtf_hrl(pd.DataFrame([{'A':2,'C':'x'}]), 'A', prm='outer', rtn=True)
+        >>> tst.mrg_dtf(pd.DataFrame([{'A':2,'C':'x'}]), 'A', prm='outer', rtn=True)
            A  B    C
         0  1  a  NaN
         1  2  b    x
@@ -752,6 +755,31 @@ class tmsMixin(cllMixin):
             self.spr_nit()
         if rtn:
             return self.dts
+
+    def add_dcm_by_day(self, str_grb, str_tms, lst_prd=None):
+        """
+        对某列进行分类后对类中所有可能的取值进行时间列的行补足
+        :param str_grb: 用于分类的列
+        :param str_tms: 需要填充的时间列
+        :param str_typ:
+        :param str_fmt:
+        :param lst_prd: 补足的时间窗口
+        :return: None
+        """
+        prcdtf = cllMixin(self.dts)
+        lst_prd = [None, None] if lst_prd is None else lst_prd
+        print(lst_prd)
+        print(prcdtf.dts[str_tms].max())
+        lst_prd[0] = prcdtf.dts[str_tms].min() if lst_prd[0] is None else lst_prd[0]
+        lst_prd[1] = prcdtf.dts[str_tms].max() if lst_prd[1] is None else lst_prd[1]
+        self.dts = DataFrame(dtz().lst_of_day(lst_prd, rtn=True),columns=[str_tms])
+        for i_cll in list(prcdtf.dts[str_grb].unique()):
+            dtf_cll = self.dts.copy()
+            dtf_cll[str_grb] = i_cll
+            dtf_cll = cllMixin(dtf_cll)
+            dtf_cll.drp_dcm_ctt(str_tms, list(prcdtf.dts.loc[prcdtf.dts[str_grb]==i_cll,:][str_tms].unique()))
+            prcdtf.mrg_dtf(dtf_cll.dts, prm='vrl')
+        self.dts = prcdtf.dts
 
 
 class pltMixin(cllMixin):

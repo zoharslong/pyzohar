@@ -15,6 +15,7 @@ from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mkti
 from calendar import monthrange     # how many days in any month
 from re import search as re_search, sub as re_sub, match as re_match
 from math import isnan as math_isnan
+from collections import Iterable
 from random import randint
 from hashlib import md5 as hsh_md5
 from numpy import array as np_array, ndarray as typ_np_ndarray
@@ -250,7 +251,7 @@ class lsz(list):
         if spr:
             self.spr_nit()
 
-    def spr_nit(self, rtn=False):
+    def spr_nit(self, rtn=False, prn=False):
         """
         super initiation. let lsz = lsz.seq.
         :param rtn: return lsz or not, default False
@@ -259,7 +260,8 @@ class lsz(list):
         try:
             super(lsz, self).__init__(self.__seq)
         except TypeError:
-            print('info: %s cannot convert to list.' % (str(self.__seq)[:8]+'..'))
+            if prn:
+                print('info: %s cannot convert to list.' % (str(self.__seq)[:8]+'..'))
         if rtn:
             return self
 
@@ -290,7 +292,7 @@ class lsz(list):
         :param rtn: return the result or not, default False
         :return: if rtn is True, return the result in format [min, max]
         """
-        lst_len = [len(i) for i in self.seq if type(i) in self.lst_typ_lsz]
+        lst_len = [len(i) for i in self.seq if isinstance(i, Iterable)]
         self.len_max = max(lst_len) if lst_len != [] else None
         self.len_min = min(lst_len) if lst_len != [] else None
         if rtn:
@@ -674,7 +676,7 @@ class dtz(object):
         :param prm: 默认None不指定当初始化为空时返回当前时间，任意赋值（如'now'）则赋值当前时间
         :return: None
         """
-        if self.val == 'now' or (self.val is None and prm is not None):
+        if val == 'now' or (self.val is None and prm is not None):
             self.val = dt_datetime.now()
         else:
             self.val = val
@@ -809,7 +811,7 @@ class dtz(object):
     def dtt_to_prd(self, str_kwd='w', rtn=False):
         """
         alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m'].
-        :param str_kwd: in ['w','m']
+        :param str_kwd: in ['W','w','M','m'] for ['%Yw%w','%yw%w','%Ym%m','%ym%m']
         :param rtn: return or not
         :return: result in format ['%Ym%m','%Yw%w']
         """
@@ -819,9 +821,10 @@ class dtz(object):
             slf_dwk = self.val.isocalendar()                        # 得到tuple(year, week, weekday)
             slf_dyr = self.val.timetuple().tm_year                  # 得到year
             slf_dmh = self.val.timetuple().tm_mon                   # 得到month
-            int_kyr = slf_dwk[0] if str_kwd == 'w' else slf_dyr     # 根据str_kwd判断标志年
-            int_kwd = slf_dwk[1] if str_kwd == 'w' else slf_dmh     # 根据str_kwd判断标志字符
-            self.val = "%s%s%s" % (str(int_kyr), str_kwd, str(int_kwd).zfill(2))
+            int_kyr = slf_dwk[0] if str_kwd.lower() == 'w' else slf_dyr     # 根据str_kwd判断标志年
+            int_kwd = slf_dwk[1] if str_kwd.lower() == 'w' else slf_dmh     # 根据str_kwd判断标志字符
+            str_kyr = str(int_kyr)[2:] if str_kwd.islower else str(int_kyr)
+            self.val = "%s%s%s" % (str_kyr, str_kwd.lower(), str(int_kwd).zfill(2))
         else:
             print('info: None cannot convert to "%y[wm]%d" format.')
         if rtn:
@@ -923,5 +926,23 @@ class dtz(object):
             self.val += typ_dt_timedelta(days=flt_dlt)
         else:
             print('info: None cannot shift.')
+        if rtn:
+            return self.val
+
+    def lst_of_day(self, lst_stn, rtn=False):
+        """
+        generate a list of day.
+        :param lst_stn: a list from start to the end, if lenthg is 1, dtz.val should be the start point
+        rtn: return or not, default False
+        """
+        lst_stn = lsz(lst_stn).typ_to_lst(rtn=True)
+        if len(lst_stn)==1:
+            lst_stn = [self.val,lst_stn[0]]
+        lst_dtt = []
+        for i in lst_stn:
+            self.val = i
+            lst_dtt.append(self.typ_to_dtt(rtn=True))
+        self.val = [lst_dtt[0]+typ_dt_timedelta(days=i) for i in range((lst_dtt[1] - lst_dtt[0]).days + 1) if
+                    (lst_dtt[0]+typ_dt_timedelta(days=i)).date() != lst_dtt[1].date()]
         if rtn:
             return self.val

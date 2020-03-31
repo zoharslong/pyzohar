@@ -199,7 +199,7 @@ class ioBsc(pd_DataFrame):
         if not lst_xcp:
             print('info: %s is not available for %s.' % (str(lst_xcp), str(self.__dts)[:8] + '..'))
 
-    def lcn_nit(self):
+    def lcn_nit(self, prn=False):
         """
         location initiate, let self.iot in ['lcl','mng','sql','api'] for [local, mongodb, sql, api].
         :return: None
@@ -213,7 +213,7 @@ class ioBsc(pd_DataFrame):
             self.iot.append('mng')
         if [True for i in self.lcn.keys() if i in ['url']] == [True]:
             self.iot.append('api')
-        if not self.iot:
+        if not self.iot and prn:
             print(' info: <.lcn: %s> is not available.' % self.lcn)
 
     def __attr_rst(self, typ=None, *, ndx_rst=True, ndx_lvl=None):
