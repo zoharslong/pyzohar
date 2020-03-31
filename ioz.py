@@ -525,7 +525,7 @@ class mngMixin(ioBsc):
             nt += n
             ct += c
             dt += d
-        print('info: %i inserted, %i updated, %i dropped.\n' % (nt, ct, dt))
+        print('info: %i inserted, %i updated, %i dropped.' % (nt, ct, dt))
 
     def mng_xpt(self, lst_ndx=None, cvr=True):
         """import from dataframe to collections
