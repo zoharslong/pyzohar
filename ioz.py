@@ -394,6 +394,8 @@ class mngMixin(ioBsc):
     def mng_nfo(self, typ=None, *, prm=None, dct_qry=None, lst_clm=None):
         """
         export mongodb connection information.
+        >>> ccm_acw.mng_nfo('max', prm='x_prd') # 返回prm列的最大值
+        '20w13'
         :param typ: which information is needed, in ['dbs','cln','clm','dcm','vls','max','min']
         :param prm: if typ is 'dcm', insert a certain column name for all the unique values in this column
         :param dct_qry: only referred when typ in ['vls','max','min'] for documents' choosing
@@ -434,7 +436,10 @@ class mngMixin(ioBsc):
         :param unq: 单个索引或复合索引在本集合中是否唯一，若是则重复插入的同索引将报错KeyError，默认False为可重复
         :param drp: 在生成新索引前是否删除全部现有的索引，默认True为全部删除
         :param srt: 建立索引时各列名为正序（1）或倒序（-1），默认为1即全部正序
-        :return: None
+        @param lst_ndx:
+        @param unq:
+        @param drp:
+        @param srt:
         """
         lst_ndx = lsz(lst_ndx).lst_to_typ('listtuple', srt, rtn=True)   # return [('A',1),('B',1)]
         if drp:
@@ -445,6 +450,7 @@ class mngMixin(ioBsc):
         """pymongo.drop
         print 'Y' to make sure that the target collection should be dropped.
         :return: None
+        @param ask:
         """
         if ask:
             if input("delete(y/n): %s\n" % str(self._myCln)).lower() in ["y", "yes", "t", "true"]:
@@ -456,6 +462,12 @@ class mngMixin(ioBsc):
             self._myCln.drop()
 
     def dlt_cln_dcm(self, dct_qry=None, *, rtn=False):
+        """
+
+        @param dct_qry:
+        @param rtn:
+        @return:
+        """
         if dct_qry is None:
             if input("delete all(y/n): %s\n" % str(self._myCln)).lower() not in ["y", "yes", "t", "true"]:
                 raise KeyError('nothing will happen for null dct_qry and wrong answer')
@@ -464,13 +476,30 @@ class mngMixin(ioBsc):
             return prc_delete_many.deleted_count
 
     def ltr_cln_dcm(self, dct_qry=None, dct_ltr=None):
+        """
+
+        @param dct_qry:
+        @param dct_ltr:
+        @return:
+        """
         prc_update_many = self._myCln.update_many(dct_qry, dct_ltr, upsert=True)
         if prc_update_many.raw_result['updatedExisting']:
             return prc_update_many.raw_result
 
-    def mng_mpt(self, dct_qry=None, lst_clm=None, *, spr=False, rtn=False):
+    def mng_mpt(self, dct_qry=None, lst_clm=None, *, prm=None, spr=False, rtn=False):
+        """
+        import data from mongo to RAM.
+        @param dct_qry:
+        @param lst_clm:
+        @param prm:
+        @param spr:
+        @param rtn:
+        @return:
+        """
         dct_qry = {} if not dct_qry else dct_qry
-        dct_clm = dcz().typ_to_dct(lst_clm, 1, rtn=True) if lst_clm else None
+        dct_clm = {'_id':0} if prm is None else prm
+        if lst_clm is not None:
+            dct_clm.update(dcz().typ_to_dct(lst_clm, 1, rtn=True))
         prc_find = self._myCln.find(dct_qry, dct_clm)
         self.dts = [dct_xpt for dct_xpt in prc_find]
         if spr:

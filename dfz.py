@@ -768,8 +768,6 @@ class tmsMixin(cllMixin):
         """
         prcdtf = cllMixin(self.dts)
         lst_prd = [None, None] if lst_prd is None else lst_prd
-        print(lst_prd)
-        print(prcdtf.dts[str_tms].max())
         lst_prd[0] = prcdtf.dts[str_tms].min() if lst_prd[0] is None else lst_prd[0]
         lst_prd[1] = prcdtf.dts[str_tms].max() if lst_prd[1] is None else lst_prd[1]
         self.dts = DataFrame(dtz().lst_of_day(lst_prd, rtn=True),columns=[str_tms])
