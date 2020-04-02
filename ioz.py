@@ -4,9 +4,6 @@
 Created on Fri Mar 22 16:30:38 2019
 input/output operation.
 @author: zoharslong
-
-@alters:
-2020-01-16 zoharslong
 """
 from numpy import ndarray as typ_np_ndarray
 from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
@@ -606,11 +603,11 @@ class sqlMixin(ioBsc):
         sql_drp = 'DROP TABLE %s'%('tb_spd_adv_bdu_kwd')
         # show tables' name in database
         >>> "SELECT table_name FROM information_schema.tables WHERE table_schema='%s'" % self.lcn['sdb']
-        :param str_sql: sql sentences
-        :param lst_kys: the lst_dts in crs.execute(str_sql, lst_dts) for %s without '"' in str_sql
-        :param spr: let ioz = ioz.dts or not, default False
-        :param rtn: return the result or not, default False
-        :return: the target dataset in type DataFrame or None
+        @param str_sql: sql sentences
+        @param lst_kys: the lst_dts in crs.execute(str_sql, lst_dts) for %s without '"' in str_sql
+        @param spr: let ioz = ioz.dts or not, default False
+        @param rtn: return the result or not, default False
+        @return: the target dataset in type DataFrame or None
         """
         cnn = connect(host=self._mySql['hst'], port=self._mySql['prt'],
                       user=self._mySql['usr'], password=self._mySql['psw'],

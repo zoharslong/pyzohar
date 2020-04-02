@@ -4,9 +4,6 @@
 Created on Fri Mar 22 16:30:38 2019
 dataframe operation.
 @author: zoharslong
-
-@alters:
-2020-02-16 zoharslong
 """
 from numpy import nan as np_nan
 from pandas import merge, concat, DataFrame

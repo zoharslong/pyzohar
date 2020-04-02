@@ -4,11 +4,7 @@
 Created on Fri Mar 22 16:30:38 2019
 basic type's alteration.
 @author: zoharslong
-
-@alters:
-2020-01-14 zoharslong
 """
-
 from datetime import datetime as dt_datetime
 from datetime import date as typ_dt_date, time as typ_dt_time, timedelta as typ_dt_timedelta
 from time import struct_time as typ_tm_structtime, strftime as tm_strftime, mktime as tm_mktime
