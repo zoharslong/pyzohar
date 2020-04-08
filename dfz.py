@@ -481,7 +481,9 @@ class clmMixin(dfBsc):
 
 
 class dcmMixin(dfBsc):
-
+    """
+    documents' Mix in
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(dcmMixin, self).__init__(dts, lcn, spr=spr)
 
@@ -541,10 +543,13 @@ class dcmMixin(dfBsc):
         """
         flt_bgn = self.len
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if not prm else lst_clm
-        self.dts = self.dts.dropna(axis=0,          # 0 for index and 1 for columns
-                                   how='any',       # any and all
-                                   thresh=prm,      # optional Keep only the rows with at least 2 non-NA values
-                                   subset=lst_clm)  # optional columns in target
+        if prm in ['keep', 'kep']:
+            pass
+        else:
+            self.dts = self.dts.dropna(axis=0,          # 0 for index and 1 for columns
+                                       how='any',       # any and all
+                                       thresh=prm,      # optional Keep only the rows with at least 2 non-NA values
+                                       subset=lst_clm)  # optional columns in target
         print('info: %i remains from %i by dropping.' % (self.len, flt_bgn))
         if spr:
             self.spr_nit()
@@ -619,6 +624,24 @@ class dcmMixin(dfBsc):
             self.spr_nit()
         if rtn:
             return self.dts
+
+    def add_dcm_spl(self, str_clm_mpt, str_clm_xpt, str_spl):
+        """
+        add document like transpose in SAS, from one column splitting. 利用某个分隔符进行分列并转变为相同结构的多行.
+        :param str_clm_mpt: the column name which will be transposed
+        :param str_clm_xpt: the new column name from str_clm_mpt
+        :param str_spl: a regex to split the target cell
+        :return: None
+        """
+        if 0 in self.clm:
+            raise KeyError('a necessary column name 0 has been occupied, column 0 needs to be renamed')
+        else:
+            dff = self.dts[str_clm_mpt].str.split(str_spl, expand=True).stack()  # 分离为series形式
+            dff.index = dff.index.codes[0]  # 保证index与self.ndx相符, 旧版本使用 = dff.index.labels[0]
+            self.dts = concat([self.dts, dff], axis=1)
+            self.drp_clm(str_clm_mpt)
+            self.rnm_clm({0: str_clm_xpt})
+            self.drp_dcm_ctt(str_clm_xpt, '',)
 
 
 class cllMixin(dcmMixin, clmMixin):
