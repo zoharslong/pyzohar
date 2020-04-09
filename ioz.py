@@ -5,6 +5,8 @@ Created on Fri Mar 22 16:30:38 2019
 input/output operation.
 @author: zoharslong
 """
+from abc import ABC
+
 from numpy import ndarray as typ_np_ndarray
 from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
@@ -19,7 +21,7 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
 from requests import post
-from json import loads, dumps, JSONDecodeError
+from json import loads, JSONDecodeError
 from .bsc import stz, lsz, dcz
 
 
@@ -278,6 +280,7 @@ class lclMixin(ioBsc):
     2  c  3  g
 
     """
+
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(lclMixin, self).__init__(dts, lcn, spr=spr)
 
@@ -391,7 +394,8 @@ class mngMixin(ioBsc):
     def mng_nfo(self, typ=None, *, prm=None, dct_qry=None, lst_clm=None):
         """
         export mongodb connection information.
-        >>> ccm_acw.mng_nfo('max', prm='x_prd') # 返回prm列的最大值
+        >>> dfzMng = mngMixin(lcn={'mdb':'dbs_tst','cln':'cln_tst'})
+        >>> dfzMng.mng_nfo('max', prm='x_tst') # 返回prm列的最大值
         '20w13'
         :param typ: which information is needed, in ['dbs','cln','clm','dcm','vls','max','min']
         :param prm: if typ is 'dcm', insert a certain column name for all the unique values in this column

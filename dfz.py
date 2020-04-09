@@ -112,7 +112,6 @@ class clmMixin(dfBsc):
         :param prm: method of fill na, in ['backfill', 'bfill', 'pad', 'ffill', None]
         :return: if rtn is True, return self.dts
         """
-        lst_clm = lsz(None)
         if args:
             if len(args) > 1 and type(args[0]) in [list, str]:
                 lst_fnl = lsz()
@@ -535,22 +534,28 @@ class dcmMixin(dfBsc):
                A  B  C
         0      1  a  a
         1    NaT  b  a
+        >>> tst.drp_dm_na('A', prm='keep', rtn=True)
+               A  B  C
+        0    NaT  b  a
         :param lst_clm: default None means do nothing
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :param prm:  remain documents at least <prm> cells not nan, default None
         :return: if rtn is True, return self.dts
         """
+        flt_trs = None if prm in ['keep', 'kep', 'kp'] else prm
         flt_bgn = self.len
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if not prm else lst_clm
-        if prm in ['keep', 'kep']:
-            pass
-        else:
-            self.dts = self.dts.dropna(axis=0,          # 0 for index and 1 for columns
-                                       how='any',       # any and all
-                                       thresh=prm,      # optional Keep only the rows with at least 2 non-NA values
-                                       subset=lst_clm)  # optional columns in target
-        print('info: %i remains from %i by dropping.' % (self.len, flt_bgn))
+        dts_drp = self.dts.dropna(axis=0,           # 0 for index and 1 for columns
+                                  how='any',        # any and all
+                                  thresh=flt_trs,   # optional Keep only the rows with at least 2 non-NA values
+                                  subset=lst_clm)   # optional columns in target
+        if prm in ['keep', 'kep', 'kp']:            # 当prm为'保留'时，反向删除不为空的行
+            self.drp_dcm(list(dts_drp.index))
+            print('info: %i remains from %i by keeping na.' % (self.len, flt_bgn))
+        else:                                       # 当prm未经过特别定义时，对dfz.dts沿用去空操作
+            self.dts = dts_drp.copy()
+            print('info: %i remains from %i by dropping na.' % (self.len, flt_bgn))
         if spr:
             self.spr_nit()
         if rtn:
@@ -663,7 +668,7 @@ class cllMixin(dcmMixin, clmMixin):
            A  B    C
         0  1  a  NaN
         1  2  b    x
-        :param dtf_mrg: if prm is 'vrl': merge[self.dts,dtf_mrg,*args]; else: name of the dataframe merged on the right side
+        :param dtf_mrg: if prm is 'vrl': merge[self.dts,dtf_mrg,*args]; else: dataframe merged on the right side
         :param args: the column names for fitting in self.dts and dtf_mrg, len(lst_str_clm_on) in [1,2]
         :param spr: let self = self.dts
         :param rtn: default False, return None
@@ -695,7 +700,7 @@ class cllMixin(dcmMixin, clmMixin):
                                  left_on=lsz(lst_clm_on[0]).typ_to_lst(rtn=True),
                                  right_on=lsz(lst_clm_on[1]).typ_to_lst(rtn=True),
                                  indicator=True)    # 使用自动定义的列'_merge'标记来源
-                self.dts = self.dts.loc[self.dts['_merge'] != 'both', :].drop(['_merge'], axis=1)
+                self.dts = self.dts.loc[self.dts['_merge'] != 'both', :].drop(['_merge'], axis=1)   # 删除标记来源行
         if spr:
             self.spr_nit()
         if rtn:

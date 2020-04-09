@@ -251,6 +251,7 @@ class lsz(list):
         """
         super initiation. let lsz = lsz.seq.
         :param rtn: return lsz or not, default False
+        :param prn: if print or not, default False
         :return: if rtn is True, return lsz
         """
         try:
@@ -846,7 +847,7 @@ class dtz(object):
             flt_dlt = 8 + flt_dlt if flt_dlt < 0 else flt_dlt
             self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
         else:
-            print('info: %s, %s not in [\'%Yw%w\',\'%yw%w\']' % (self.val, self.fmt))
+            print('info: {}, {} not in [\'%Yw%w\',\'%yw%w\']'.format(self.val, self.fmt))
         if rtn:
             return self.val
 
@@ -871,7 +872,7 @@ class dtz(object):
                 int_day = flt_dlt if flt_dlt > 0 else int_max + 1 + flt_dlt
                 self.val = dt_datetime(int_dyr, int_dmh, int_day)
         else:
-            print('info: %s, %s not in [\'%Ym%m\',\'%ym%m\']' % (self.val, self.fmt))
+            print('info: {}, {} not in [\'%Ym%m\',\'%ym%m\']'.format(self.val, self.fmt))
         if rtn:
             return self.val
 
@@ -891,16 +892,18 @@ class dtz(object):
         if rtn:
             return self.val
 
-    def edg_of_prd(self, lst_flt, str_typ='str', str_fmt='%Y-%m-%d', *, rtn=False):
+    def edg_of_prd(self, lst_flt=None, str_typ='str', str_fmt='%Y-%m-%d', *, rtn=False):
         """
         export the edg of period value in format '[0-9]{2,4}[wm][0-9]{2}'.
+        >>> dtz('20w14').edg_of_prd([1, -1], rtn=True)
+        ['2020-03-30', '2020-04-05']
         :param lst_flt: a list of float in self.val period
         :param str_typ: type of the result
         :param str_fmt: format of the result if type is str
         :param rtn: return the result if True, default False
         :return: return the result if rtn is True
         """
-        lst_prd, prd_tmp = [], self.val
+        lst_prd, prd_tmp, lst_flt = [], self.val, [1, -1] if lst_flt is None else lst_flt
         for i in lsz(lst_flt).typ_to_lst(rtn=True):
             self.val = prd_tmp
             self.prd_to_dtt(i)
@@ -912,6 +915,10 @@ class dtz(object):
     def shf(self, flt_dlt=0, rtn=False):
         """
         shift days from dtz.val, type of dtz.val will be datetime.datetime.
+        >>> dtz('2020-01-01').shf(5, rtn=True)
+        datetime.datetime(2020, 1, 6, 0, 0)
+        >>> dtz('2020-01-01').shf(-5, rtn=True)
+        datetime.datetime(2019, 12, 27, 0, 0)
         :param flt_dlt: how many days to shift, delta in type float
         :param rtn: return or not, default False
         :return: if rtn is True, return the result
@@ -928,12 +935,16 @@ class dtz(object):
     def lst_of_day(self, lst_stn, rtn=False):
         """
         generate a list of day.
+        >>> dtz().lst_of_day(['2019-01-01','2019-01-04'], rtn=True)
+        [datetime.datetime(2019, 1, 1, 0, 0),
+         datetime.datetime(2019, 1, 2, 0, 0),
+         datetime.datetime(2019, 1, 3, 0, 0)]
         :param lst_stn: a list from start to the end, if lenthg is 1, dtz.val should be the start point
-        rtn: return or not, default False
+        :param rtn: return or not, default False
         """
         lst_stn = lsz(lst_stn).typ_to_lst(rtn=True)
-        if len(lst_stn)==1:
-            lst_stn = [self.val,lst_stn[0]]
+        if len(lst_stn) == 1:
+            lst_stn = [self.val, lst_stn[0]]
         lst_dtt = []
         for i in lst_stn:
             self.val = i
