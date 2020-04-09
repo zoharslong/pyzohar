@@ -498,7 +498,7 @@ class mngMixin(ioBsc):
         @return:
         """
         dct_qry = {} if not dct_qry else dct_qry
-        dct_clm = {'_id':0} if prm is None else prm
+        dct_clm = {'_id': 0} if prm is None else prm
         if lst_clm is not None:
             dct_clm.update(dcz().typ_to_dct(lst_clm, 1, rtn=True))
         prc_find = self._myCln.find(dct_qry, dct_clm)

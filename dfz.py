@@ -5,8 +5,8 @@ Created on Fri Mar 22 16:30:38 2019
 dataframe operation.
 @author: zoharslong
 """
-from numpy import nan as np_nan
-from pandas import merge, concat, DataFrame
+from numpy import nan as np_nan, max as np_max, min as np_min
+from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
@@ -112,18 +112,8 @@ class clmMixin(dfBsc):
         :param prm: method of fill na, in ['backfill', 'bfill', 'pad', 'ffill', None]
         :return: if rtn is True, return self.dts
         """
-        if args:
-            if len(args) > 1 and type(args[0]) in [list, str]:
-                lst_fnl = lsz()
-                lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-                lst_clm_fll = lsz(args[1])
-                lst_clm_fll.typ_to_lst(spr=True)
-                fnl = lst_fnl.lst_to_typ('dct', lst_clm, lst_clm_fll.cpy_tal(len(lst_clm), rtn=True), rtn=True)[0]
-            else:
-                fnl = args[0]
-        else:
-            fnl = None
-        self.dts = self.dts.fillna(value=fnl, method=prm)
+        dct_fll = lsz(args)._rg_to_typ(prm='dct', rtn=True) if args else None
+        self.dts = self.dts.fillna(value=dct_fll, method=prm)
         if spr:
             self.spr_nit()
         if rtn:
@@ -169,13 +159,8 @@ class clmMixin(dfBsc):
         :param prm: new name for static columns, default remain old names if None
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) in [dict] and len(args) == 1:
-            dct_stt = args[0]
-            lst_stt = list(args[0].keys())
-        else:
-            lst_stt = lsz(args[0]).typ_to_lst(rtn=True)
-            lst_mtd = lsz(args[1]).cpy_tal(len(lst_stt), rtn=True)
-            dct_stt = lsz(lst_mtd).lst_to_typ('dct', lst_stt, rtn=True)[0]
+        dct_stt = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_stt = list(dct_stt.keys())
         self.dts = self.dts.groupby(lsz(lst_clm).typ_to_lst(rtn=True))
         self.dts = self.dts.aggregate(dct_stt).reset_index(drop=False)
         if type(self.clm) is typ_pd_Index:
@@ -203,12 +188,8 @@ class clmMixin(dfBsc):
         :param prm: a list of regex to be found in old columns
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) is dict and len(args) == 1:
-            lst_clm = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
-            lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
-        else:
-            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-            lst_new = lsz(args[0]).typ_to_lst(rtn=True) if len(args) == 1 else lsz(args[1]).typ_to_lst(rtn=True)
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_clm, lst_new = list(dct_rgs.keys()), list(dct_rgs.values())
         prm = lsz(prm)
         prm.typ_to_lst()
         prm.cpy_tal(len(lst_clm), spr=True)
@@ -236,6 +217,100 @@ class clmMixin(dfBsc):
             dtf_dtl = concat([dtf_dtl, dtf_i], axis=0, sort=False)
         self.dts.drop([str_clm], axis=1, inplace=True)
         self.dts = concat([dtf_dtl, self.dts], axis=1, join='outer', sort=False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def add_clm_spl(self, clm_spl, clm_vls, clm_rmn=None, *, spr=False, rtn=False):
+        """
+        add columns from spliting an column.
+        >>> self = dfz([{'est':'A','date':'1','vls':1},{'est':'B','date':'1','vls':2},
+        >>>             {'est':'A','date':'2','vls':1},{'est':'B','date':'3','vls':2},])
+        >>> self.typ_to_dtf()
+        >>> self.add_clm_spl('est','vls', rtn=True)  # 按照est列，将vls列的值扩张成多个新的列
+          date  vls_A  vls_B
+        0    1    1.0    2.0
+        1    3    1.0    NaN
+        2    2    NaN    2.0
+        :param clm_spl: 用于分出多列的列，列中的每一种唯一元素都会成为新的列
+        :param clm_vls: 用于分到多列的值
+        :param clm_rmn: 保留到新表中的用作拼接的列
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: if rtn, return self.dts
+        """
+        dtf_fnl = DataFrame([])
+        clm_spl_cll = self.dts[clm_spl].unique()
+        # 对clm_rmn进行预处理
+        if clm_rmn is None:
+            clm_ttl = [i for i in lsz(self.clm.copy()).typ_to_lst(rtn=True) if i not in [clm_spl]]
+            clm_rmn = [i for i in clm_ttl if i not in [clm_vls, clm_spl]]
+        else:
+            clm_rmn = [i for i in lsz(clm_rmn).typ_to_lst(rtn=True) if i not in [clm_vls, clm_spl]]
+            clm_ttl = lsz(clm_rmn + [clm_vls]).typ_to_lst(rtn=True)
+        # 如果存在标志列重复的行，则终止本次列转行操作，因为会在拼接过程中导致虚增重复的行数
+        len_bfr = self.len
+        chk_dpl = self.dts.drop_duplicates(subset=[clm_spl] + clm_rmn, keep='first')
+        if len_bfr != chk_dpl.shape[0]:
+            raise AttributeError("stop: duplicate documents exist, %.i / %.i." % (chk_dpl.shape[0], len_bfr))
+        # clm_spl中每个唯一的cell进行一次clm_vls列的值转新列的操作
+        for i in range(clm_spl_cll.shape[0]):
+            dtf_tmp = self.dts.loc[self.dts[clm_spl] == clm_spl_cll[i], :][clm_ttl]
+            dtf_tmp.rename(columns={clm_vls: clm_vls+'_'+clm_spl_cll[i]}, inplace=True)
+            dtf_fnl = dtf_tmp.copy() if dtf_fnl.shape[0] == 0 else merge(dtf_fnl, dtf_tmp, how='outer', on=clm_rmn)
+        self.dts = dtf_fnl
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def add_clm_ctg(self, *args, prm='num', ctg_num=2, ctg_edg=None, ctg_lbl=None, bln_lwr=False, spr=False, rtn=False):
+        """
+        add new columns of certain columns in category.
+        >>> tst = dfz([{'A':1},{'A':2},{'A':3},{'A':4},{'A':5},])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_ctg('A',ctg_lbl=['a','b','c','d','e'],bln_lwr=True)
+           A
+        0  a
+        1  a
+        2  a
+        3  b
+        4  b
+        :param args:
+        :param prm: in ['number', 'num', 'width']
+        :param ctg_num: the number of boxes if prm in ['num', 'number'], the width of each box if prm in ['width']
+        :param ctg_edg: the min and max limitation of th category
+        :param ctg_lbl: label name of each boxes
+        :param bln_lwr: method in (a, b] or [a, b], default (,]
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: if rtn, return self.dts
+        """
+        lst_rgs = lsz(args)._rg_to_typ(rtn=True)
+        str_mpt, str_xpt = lst_rgs[0], lst_rgs[1]
+        flt_min = np_min(self.dts[str_mpt])     # 自动产生分箱的上下界
+        flt_max = np_max(self.dts[str_mpt])
+        if ctg_edg is not None and ctg_edg[0] <= flt_min and ctg_edg[1] >= flt_max:
+            flt_min = ctg_edg[0]
+            flt_max = ctg_edg[1]
+        elif ctg_edg is None:
+            pass
+        else:
+            raise AttributeError('stop: edge of the category is not available.')
+        # 构建分箱规则列表
+        lst_bns = [flt_min]
+        flt_cts = (flt_max - flt_min) / ctg_num
+        if prm is 'num':        # option: 确定分箱数量
+            lst_bns = [flt_min] + [flt_min+(i+1)*flt_cts for i in range(int(ctg_num))]
+        elif prm is 'width':    # option: 确定分箱宽度
+            from math import ceil
+            lst_bns = [flt_min] + [flt_min+(i+1)*ctg_num for i in range(ceil(flt_cts))]
+        # 基础分箱
+        ctg_lbl = ctg_lbl[:len(lst_bns) - 1] if ctg_lbl is not None else ctg_lbl
+        self.dts[str_xpt] = cut(self.dts[str_mpt], lst_bns, labels=ctg_lbl, include_lowest=bln_lwr)
+        self.dts_nit()
+        print('info: transform column <%s> in category %s.' % (str_mpt, str(ctg_lbl)))
         if spr:
             self.spr_nit()
         if rtn:
@@ -270,14 +345,8 @@ class clmMixin(dfBsc):
         :param prm: in [None, 'part', function]
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) is dict and len(args) == 1:
-            lst_old = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
-            lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
-        else:
-            lst_old = lsz(args[0]).typ_to_lst(rtn=True)
-            lst_new = lsz(args[1])
-            lst_new.typ_to_lst()
-            lst_new.cpy_tal(len(lst_old), spr=True)
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_old, lst_new = list(dct_rgs.keys()), list(dct_rgs.values())
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
         for i in range(len(lst_clm)):
             for j in range(len(lst_old)):
@@ -310,14 +379,9 @@ class clmMixin(dfBsc):
         :param rtn: default False, return None
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) is dict and len(args) == 1:
-            dct_typ = args[0]
-        else:
-            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-            lst_typ = lsz(args[1])
-            lst_typ.typ_to_lst()
-            lst_typ.cpy_tal(len(lst_clm), spr=True)
-            dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]   # args转字典
+        # *args预处理
+        dct_typ = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        # 转化部分
         for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['lower', 'lwr']]:
             self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].lower() if type(x[i_clm]) is str else x[i_clm], axis=1)
         for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['upper', 'ppr']]:
@@ -328,7 +392,7 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def ltr_clm_flt(self, *args, spr=False, rtn=False, prn=True):
+    def ltr_clm_flt(self, *args, spr=False, rtn=False, prn=False):
         """
         check columns in float, if cannot convert into float, fill None.
         >>> tst = clmMixin([{'A':1.21},{'A':2},{'A':'a'}])
@@ -341,11 +405,8 @@ class clmMixin(dfBsc):
         :param prn: print cells that cannot convert into float
         :return: if prn is True, return unusual cells; if not prn and rtn, return self.dts
         """
-        lst_old = lsz(args[0]).typ_to_lst(rtn=True)
-        if len(args) == 1:
-            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-        else:
-            lst_clm = lsz(args[1]).typ_to_lst(rtn=True)
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
         lst_ttl = []
         for i in range(len(lst_clm)):
             if lst_old[i] in self.clm:
@@ -381,11 +442,8 @@ class clmMixin(dfBsc):
         :param prm: decimal scales. default 2
         :return: if rtn is True, return self.dts
         """
-        lst_old = lsz(args[0]).typ_to_lst(rtn=True)
-        if len(args) == 1:
-            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-        else:
-            lst_clm = lsz(args[1]).typ_to_lst(rtn=True)
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
         prm = lsz(prm)
         prm.typ_to_lst()
         prm.cpy_tal(len(lst_clm), spr=True)
@@ -414,14 +472,7 @@ class clmMixin(dfBsc):
         :param rtn: default False, return None
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) is dict and len(args) == 1:
-            dct_typ = args[0]
-        else:
-            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-            lst_typ = lsz(args[1])
-            lst_typ.typ_to_lst()
-            lst_typ.cpy_tal(len(lst_clm), spr=True)
-            dct_typ = lst_typ.lst_to_typ('dct', lst_clm, rtn=True)[0]                   # args转字典
+        dct_typ = lsz(args)._rg_to_typ(prm='dct', rtn=True)                # args转字典
         lst_flt = [i for i in dct_typ.keys() if dct_typ[i] in [int, 'int', float, 'float']]
         self.ltr_clm_rpc(lst_flt, ['NA', 'N/A', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
         self.dts = self.dts.astype(dct_typ)  # 核心转换
@@ -462,13 +513,9 @@ class clmMixin(dfBsc):
             return self.dts
 
     def cod_clm_md5(self, *args, spr=False, rtn=False, prm=None):
-        lst_old = lsz(args[0])
-        lst_old.typ_to_lst(spr=True)
-        if len(args) == 1:
-            lst_clm = lsz(args[0]).typ_to_lst(rtn=True)
-        else:
-            lst_clm = lsz(args[1]).typ_to_lst(rtn=True)
-        lst_old.cpy_tal(len(lst_clm), spr=True)
+        """"""
+        lst_rgs = lsz(args)._rg_to_typ(rtn=True)
+        lst_old, lst_clm = lsz(lst_rgs[0]), lsz(lst_rgs[1])
         self.ltr_clm_typ(lst_old.seq, 'str')
         for i in range(len(lst_clm)):
             self.dts[lst_clm[i]] = self.dts.apply(lambda x: stz(x[lst_old[i]]).ncd_md5(rtn=True, prm=prm), axis=1)
@@ -630,23 +677,85 @@ class dcmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def add_dcm_spl(self, str_clm_mpt, str_clm_xpt, str_spl):
+    def add_dcm_spl(self, *args, prm=',', spr=False, rtn=False):
         """
         add document like transpose in SAS, from one column splitting. 利用某个分隔符进行分列并转变为相同结构的多行.
-        :param str_clm_mpt: the column name which will be transposed
-        :param str_clm_xpt: the new column name from str_clm_mpt
-        :param str_spl: a regex to split the target cell
-        :return: None
+        >>> tst = dfz([{'cls': '1', 'vls':'1,2,3'},
+        >>>            {'cls': '2', 'vls':'a,b,c'},])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_dcm_spl('vls', rtn=True)    # same as .add_dcm_spl('vls', 'vls', rtn=True)/({'vls':'vls'}, rtn=True)
+          cls vls
+        0   1   1
+        1   1   2
+        2   1   3
+        3   2   a
+        4   2   b
+        5   2   c
+        :param args: in format (str_clm_spl, str_clm_new), ({str_clm_spl:str_clm_new},(str_clm_spl)
+        :param prm: a regex to split the target cell
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: None if rtn
         """
         if 0 in self.clm:
             raise KeyError('a necessary column name 0 has been occupied, column 0 needs to be renamed')
         else:
-            dff = self.dts[str_clm_mpt].str.split(str_spl, expand=True).stack()  # 分离为series形式
+            if type(args[0]) is dict and len(args) == 1:
+                str_mpt = args[0].keys()[0]
+                str_xpt = args[0].values()[0]
+            else:
+                str_mpt = args[0]
+                str_xpt = args[0] if len(args) == 1 else args[1]
+            dff = self.dts[str_mpt].str.split(prm, expand=True).stack()  # 分离为series形式
             dff.index = dff.index.codes[0]  # 保证index与self.ndx相符, 旧版本使用 = dff.index.labels[0]
             self.dts = concat([self.dts, dff], axis=1)
-            self.drp_clm(str_clm_mpt)
-            self.rnm_clm({0: str_clm_xpt})
-            self.drp_dcm_ctt(str_clm_xpt, '',)
+            self.drp_clm(str_mpt)
+            self.rnm_clm({0: str_xpt})
+            self.drp_dcm_ctt(str_xpt, '',)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def add_dcm_agg(self, lst_clm_grp, lst_clm_agg=None, *, clm_cls='_cty', clm_vls='_vls', spr=False, rtn=False):
+        """
+        add documents from aggregating, group by lst_clm_grp，lst_clm_mpt中的同性质列转行，实现缩列扩行.
+        >>> tst = dfz([{'date': '1', 'vls_A': 1.0, 'vls_B': 3.0},
+        >>>            {'date': '2', 'vls_A': 2.0, 'vls_B': 2.0}])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_dcm_agg('date', ['vls_A', 'vls_B'], rtn=True)   # same as .add_dcm_agg('date', rtn=True)
+            _cty date _vls
+        0  vls_A    1    1
+        1  vls_A    2    2
+        3  vls_B    1    3
+        4  vls_B    2    2
+        :param lst_clm_grp: 用于汇总分组的列，即 grouping by and aggregating
+        :param lst_clm_agg: 同性质的将要换位同一列的多列名组成的列表, 若表中除lst_clm_grp外均需处理则可为空
+        :param clm_cls: 缩列后用于存放标志多列来源的分类列，列中内容为lst_clm_mpt，default _cty
+        :param clm_vls: 缩列后用于存放多列数据值的唯一列名，default _vls
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: None
+        """
+        lst_dtf = []
+        lst_clm_grp = lsz(lst_clm_grp).typ_to_lst(rtn=True)
+        lst_clm_agg = [i for i in self.clm if i not in lst_clm_grp] if lst_clm_agg is None else \
+            lsz(lst_clm_agg).typ_to_lst(rtn=True)
+        for i_clm in lst_clm_agg:
+            if i_clm in self.clm:
+                lst_clm_grp_tmp = lsz(lst_clm_grp).typ_to_lst(rtn=True).copy()
+                lst_clm_grp_tmp.append(i_clm)
+                dtf_tmp = DataFrame(self.dts.values, columns=self.clm, index=lsz(i_clm).cpy_tal(self.len, rtn=True))
+                dtf_tmp.index.name = clm_cls  # 设定index name 用于在reset_index环节直接导出成为column name
+                dtf_tmp = dtf_tmp[lst_clm_grp_tmp]
+                dtf_tmp.rename(columns={i_clm: clm_vls}, inplace=True)
+                lst_dtf.append(dtf_tmp)  # 拼接用于for循环结束后的concat环节
+        print(lst_dtf)
+        self.dts = concat(lst_dtf, axis=0).reset_index(drop=False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 
 class cllMixin(dcmMixin, clmMixin):
@@ -704,7 +813,22 @@ class cllMixin(dcmMixin, clmMixin):
         if spr:
             self.spr_nit()
         if rtn:
-            return self.dts
+            return self.dts.to_dict()
+
+    def t(self):
+        """
+        对第一行第一列为坐标轴的dataframe进行转置
+        """
+        str_clm_tgt = self.clm[0]
+        dtmp = self.dts.T
+        dtmp.columns = list(dtmp.iloc[0, :])
+        dtmp = dtmp.iloc[1:, :]
+        dtmp[str_clm_tgt] = dtmp.index
+        self.dts = dtmp
+        lst_clm_srt = list(self.clm)
+        lst_clm_srt.remove(str_clm_tgt)
+        lst_clm_srt = [str_clm_tgt] + lst_clm_srt
+        self.srt_clm(lst_clm_srt, drp=False)
 
 
 class tmsMixin(cllMixin):
@@ -783,11 +907,20 @@ class tmsMixin(cllMixin):
 
     def add_dcm_by_day(self, str_grb, str_tms, lst_prd=None):
         """
-        对某列进行分类后对类中所有可能的取值进行时间列的行补足
+        对某列进行分类后对类中所有可能的取值进行时间列的行补足.
+        >>> tst = dfz([{'cls':1,'date':'2019-01-01'},{'cls':1,'date':'2019-01-04'},])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_dcm_by_day('cls','date')
+        >>> tst.tms_to_typ('date','str')
+        >>> tst.srt_dcm('date')
+        >>> print(tst.dts)
+           cls        date
+        0    1  2019-01-01
+        1    1  2019-01-02
+        2    1  2019-01-03
+        3    1  2019-01-04
         :param str_grb: 用于分类的列
         :param str_tms: 需要填充的时间列
-        :param str_typ:
-        :param str_fmt:
         :param lst_prd: 补足的时间窗口
         :return: None
         """
@@ -795,12 +928,12 @@ class tmsMixin(cllMixin):
         lst_prd = [None, None] if lst_prd is None else lst_prd
         lst_prd[0] = prcdtf.dts[str_tms].min() if lst_prd[0] is None else lst_prd[0]
         lst_prd[1] = prcdtf.dts[str_tms].max() if lst_prd[1] is None else lst_prd[1]
-        self.dts = DataFrame(dtz().lst_of_day(lst_prd, rtn=True),columns=[str_tms])
+        self.dts = DataFrame(dtz().lst_of_day(lst_prd, rtn=True), columns=[str_tms])
         for i_cll in list(prcdtf.dts[str_grb].unique()):
             dtf_cll = self.dts.copy()
             dtf_cll[str_grb] = i_cll
             dtf_cll = cllMixin(dtf_cll)
-            dtf_cll.drp_dcm_ctt(str_tms, list(prcdtf.dts.loc[prcdtf.dts[str_grb]==i_cll,:][str_tms].unique()))
+            dtf_cll.drp_dcm_ctt(str_tms, list(prcdtf.dts.loc[prcdtf.dts[str_grb] == i_cll, :][str_tms].unique()))
             prcdtf.mrg_dtf(dtf_cll.dts, prm='vrl')
         self.dts = prcdtf.dts
 
@@ -810,6 +943,20 @@ class pltMixin(cllMixin):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(pltMixin, self).__init__(dts, lcn, spr=spr)
 
+    def gnr_per(self, *args, lst_clm, str_tls='_pop'):
+        """求环比变化率"""
+        if lst_clm is None:
+            lst_clm = list(self.clm).copy()
+            for i_prd in ['x_prd', 'x_week', 'x_date', 'x_day', 'x_mnth', 'do_day', 'do_date']:
+                try: lst_clm.remove(i_prd)
+                except ValueError: pass
+        for i_clm in lst_clm:
+            for i in range(1, self.len):
+                if self.dts.loc[i - 1, i_clm] > 0:
+                    self.dts.loc[i, i_clm + str_tls] = round(
+                        100 * (self.dts.loc[i, i_clm] - self.dts.loc[i - 1, i_clm]) / self.dts.loc[i - 1, i_clm], 1)
+            self.fll_clm_na({i_clm + str_tls: 0})
+            self.ltr_clm_rpc([i_clm + str_tls], -100, 0)
 
 class dfz(tmsMixin, pltMixin):
 
