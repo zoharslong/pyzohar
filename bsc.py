@@ -226,17 +226,18 @@ class lsz(list):
         typ_pd_RangeIndex,
     ]   # lsz.seq's type
 
-    def __init__(self, seq=None, spr=True):
+    def __init__(self, seq=None, spr=True, lst=False):
         """
         create a new list object from the given object.
         :param seq: first, save target into lsz.seq
         :param spr: let lsz = lsz.seq or not, default False
+        :param lst:
         """
         super().__init__()
         self.__seq, self.typ, self.len, self.len_max, self.len_min = None, None, None, None, None
-        self.__init_rst(seq, spr)
+        self.__init_rst(seq, spr, lst)
 
-    def __init_rst(self, seq=None, spr=False):
+    def __init_rst(self, seq=None, spr=False, lst=False):
         """
         private reset initiation.
         :param seq: a list content in any type, None for []
@@ -245,6 +246,8 @@ class lsz(list):
         """
         if self.seq is None:
             self.seq = seq if seq is not None else []
+        if lst:
+            self.typ_to_lst()
         if spr:
             self.spr_nit()
 
@@ -329,37 +332,6 @@ class lsz(list):
             self.seq = self.seq.to_dict(orient=prm)
         else:
             self.seq = [self.seq]
-        if spr:
-            self.spr_nit()
-        if rtn:
-            return self.seq
-
-    def _rg_to_typ(self, *, prm='lst', spr=False, rtn=False):
-        """
-        args in functions to list. 仅用于函数中对*args的处理
-        :param prm: in ['list', 'lst', 'dict', 'dct']
-        :param spr:
-        :param rtn:
-        :return:
-        """
-        if self.seq in [None, []]:
-            pass
-        elif type(self.seq[0]) is dict and self.len == 1:
-            str_mpt = list(self.seq[0].keys())[0]
-            str_xpt = list(self.seq[0].values())[0]
-            self.seq = [str_mpt, str_xpt]
-        elif self.len == 1:
-            self.typ_to_lst()
-            self.cpy_tal(2)
-        else:
-            self.typ_to_lst()
-        if prm in ['dct', 'dict', 'dictionary'] and self.seq not in [None, []]:
-            arg = self.seq.copy()
-            self.seq = arg[0]
-            lst_bgn = self.typ_to_lst(rtn=True)
-            self.seq = arg[1]
-            self.cpy_tal(len(lst_bgn))
-            self.seq = self.lst_to_typ('dct', lst_bgn, rtn=True)[0]
         if spr:
             self.spr_nit()
         if rtn:
@@ -508,6 +480,66 @@ class lsz(list):
         for i_dtp in self.seq:
             lst_clm_dtp.extend(dtf_chk.dtypes[dtf_chk.dtypes == i_dtp].index.values)
         self.seq = lst_clm_dtp
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.seq
+
+    def _rg_to_typ(self, *, prm=None, spr=False, rtn=False):
+        """
+        args in functions to list. 仅用于函数中对*args的处理.
+        >>> lsz(('a',))._rg_to_typ(rtn=True)
+        ['a', 'a']
+        >>> lsz(({'a':'b'},))._rg_to_typ(rtn=True)
+        [['a'], ['b']]
+        >>> lsz((['a','b'],'x'))._rg_to_typ(prm='dct', rtn=True)
+        {'a': 'x', 'b': 'x'}
+        >>> lsz((['a','c'],'b'))._rg_to_typ(prm='list',rtn=True)
+        [['a', 'c'], ['b', 'b']]
+        >>> lsz(('a',['b','c']))._rg_to_typ(prm='list',rtn=True)
+        [['a', 'a'], ['b', 'c']]
+        :param prm: in ['equal', 'eql', 'dict', 'dct']
+        :param spr:
+        :param rtn:
+        :return:
+        """
+        if self.seq in [None, []]:
+            pass
+        elif type(self.seq[0]) is dict and self.len == 1:   # args from ({a:A,b:B},) to [[a, b], [A, B]]
+            str_mpt = list(self.seq[0].keys())
+            str_xpt = list(self.seq[0].values())
+            self.seq = [str_mpt, str_xpt]
+        elif self.len == 1:                                 # args from (x,) to [x, x]
+            self.typ_to_lst()
+            self.cpy_tal(2)
+        else:                                               # args from (x, y, ...) to [x, y, ...]
+            self.typ_to_lst()
+        if prm in ['dct', 'dict', 'dictionary'] and self.seq not in [None, []]:  # args from [[x,y],[a,b]] to {x:y,a:b}
+            arg = self.seq.copy()
+            self.seq = arg[0]
+            lst_bgn = self.typ_to_lst(rtn=True)
+            self.seq = arg[1]
+            self.cpy_tal(len(lst_bgn))
+            self.seq = self.lst_to_typ('dct', lst_bgn, rtn=True)[0]
+        elif prm in ['eql', 'equal']:                       # args from [x, [a,b]] to [[x,x],[a,b]]
+            arg = self.seq.copy()
+            self.seq = arg[0]
+            lst_bgn = self.typ_to_lst(rtn=True)
+            self.seq = arg[1]
+            lst_end = self.typ_to_lst(rtn=True)
+            self.seq = [lst_bgn, lst_end]
+            len_fnl = self.len_max
+            if len(lst_bgn) < len_fnl:
+                self.seq = lst_bgn.copy()
+                self.cpy_tal(len_fnl)
+                lst_bgn = self.seq
+            elif len(lst_end) < len_fnl:
+                self.seq = lst_end.copy()
+                self.cpy_tal(len_fnl)
+                lst_end = self.seq
+            self.seq = [lst_bgn, lst_end]
+        else:
+            print('info: prm needs ["dct","eql"] for format [{x:y}, [[x,x],[a,b]]].')
         if spr:
             self.spr_nit()
         if rtn:

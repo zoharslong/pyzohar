@@ -514,9 +514,10 @@ class clmMixin(dfBsc):
 
     def cod_clm_md5(self, *args, spr=False, rtn=False, prm=None):
         """"""
-        lst_rgs = lsz(args)._rg_to_typ(rtn=True)
-        lst_old, lst_clm = lsz(lst_rgs[0]), lsz(lst_rgs[1])
-        self.ltr_clm_typ(lst_old.seq, 'str')
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
+        print(dct_rgs)
+        self.ltr_clm_typ(lst_old, 'str')
         for i in range(len(lst_clm)):
             self.dts[lst_clm[i]] = self.dts.apply(lambda x: stz(x[lst_old[i]]).ncd_md5(rtn=True, prm=prm), axis=1)
         self.dts_nit()
@@ -646,18 +647,12 @@ class dcmMixin(dfBsc):
         :param prm: in [(True,'drop'),(False,'keep'),'partDrop','partKeep'], default True for dropping documents.
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) is dict and len(args) == 1:
-            lst_clm = lsz(list(args[0].keys()))
-            lst_ctt = lsz(list(args[0].values()))
-        else:
-            lst_clm = lsz(args[0])
-            lst_ctt = lsz(args[1])
-        lst_clm.typ_to_lst(spr=True)
-        lst_ctt.typ_to_lst(spr=True)
-        if len(lst_clm) == 1 and type(lst_ctt[0]) not in [list, lsz]:
+        lst_rgs = lsz(args)._rg_to_typ(rtn=True)
+        lst_clm, lst_ctt = lsz(lst_rgs[0], lst=True), lsz(lst_rgs[1], lst=True)
+        if lst_clm.len == 1 and type(lst_ctt[0]) not in [list, lsz]:
             lst_ctt = lsz([lst_ctt.seq])            # 当仅检查单列时，需要控制其待识别内容为唯一个列表
-        lst_clm.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).edg_of_len(rtn=True)[1], spr=True)
-        lst_ctt.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).edg_of_len(rtn=True)[1], spr=True)
+        lst_clm.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).len_max, spr=True)
+        lst_ctt.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).len_max, spr=True)
         for i in range(len(lst_clm)):
             if prm is False or prm in ['keep', 'kep']:   # 当not drop 或prm='keep'时，保留完全匹配的行
                 self.dts = self.dts.loc[self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
@@ -700,12 +695,8 @@ class dcmMixin(dfBsc):
         if 0 in self.clm:
             raise KeyError('a necessary column name 0 has been occupied, column 0 needs to be renamed')
         else:
-            if type(args[0]) is dict and len(args) == 1:
-                str_mpt = args[0].keys()[0]
-                str_xpt = args[0].values()[0]
-            else:
-                str_mpt = args[0]
-                str_xpt = args[0] if len(args) == 1 else args[1]
+            dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+            str_mpt, str_xpt = list(dct_rgs.keys())[0], list(dct_rgs.values())[0]
             dff = self.dts[str_mpt].str.split(prm, expand=True).stack()  # 分离为series形式
             dff.index = dff.index.codes[0]  # 保证index与self.ndx相符, 旧版本使用 = dff.index.labels[0]
             self.dts = concat([self.dts, dff], axis=1)
@@ -850,17 +841,8 @@ class tmsMixin(cllMixin):
         :param rtn: default False, return None
         :return: if rtn is True, return self.dts
         """
-        if type(args[0]) is dict and len(args) == 1:
-            lst_old = lsz(list(args[0].keys())).typ_to_lst(rtn=True)
-            lst_new = lsz(list(args[0].values())).typ_to_lst(rtn=True)
-        elif len(args) == 1:
-            lst_old = lsz(args[0]).typ_to_lst(rtn=True)
-            lst_new = lsz(args[0]).typ_to_lst(rtn=True)
-        else:
-            lst_old = lsz(args[0])
-            lst_new = lsz(args[1]).typ_to_lst(rtn=True)
-            lst_old.typ_to_lst()
-            lst_old.cpy_tal(len(lst_new), spr=True)
+        lst_rgs = lsz(args)._rg_to_typ(prm='eql', rtn=True)
+        lst_old, lst_new = lst_rgs[0], lst_rgs[1]
         for i in range(len(lst_old)):
             self.dts[lst_new[i]] = self.dts.apply(lambda x: dtz(x[lst_old[i]]).typ_to_dtt(rtn=True), axis=1)
         self.dts_nit()
@@ -948,8 +930,10 @@ class pltMixin(cllMixin):
         if lst_clm is None:
             lst_clm = list(self.clm).copy()
             for i_prd in ['x_prd', 'x_week', 'x_date', 'x_day', 'x_mnth', 'do_day', 'do_date']:
-                try: lst_clm.remove(i_prd)
-                except ValueError: pass
+                try:
+                    lst_clm.remove(i_prd)
+                except ValueError:
+                    pass
         for i_clm in lst_clm:
             for i in range(1, self.len):
                 if self.dts.loc[i - 1, i_clm] > 0:
@@ -957,6 +941,7 @@ class pltMixin(cllMixin):
                         100 * (self.dts.loc[i, i_clm] - self.dts.loc[i - 1, i_clm]) / self.dts.loc[i - 1, i_clm], 1)
             self.fll_clm_na({i_clm + str_tls: 0})
             self.ltr_clm_rpc([i_clm + str_tls], -100, 0)
+
 
 class dfz(tmsMixin, pltMixin):
 
