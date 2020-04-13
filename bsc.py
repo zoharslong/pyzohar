@@ -163,7 +163,7 @@ class stz(str):
         :param rtn: if rtn is True, return self.cod
         :return: a str of code
         """
-        prm = 'zohar' if not prm else prm
+        prm = 'zohar' if not prm else prm   # 默认的哈希参数
         self.cod = self
         if type(self) in [str, stz]:
             hsh = hsh_md5(bytes(prm, encoding='utf-8'))
@@ -485,7 +485,7 @@ class lsz(list):
         if rtn:
             return self.seq
 
-    def _rg_to_typ(self, *, prm=None, spr=False, rtn=False):
+    def _rg_to_typ(self, *, spr=False, rtn=False, prm=None, prn=False):
         """
         args in functions to list. 仅用于函数中对*args的处理.
         >>> lsz(('a',))._rg_to_typ(rtn=True)
@@ -538,8 +538,10 @@ class lsz(list):
                 self.cpy_tal(len_fnl)
                 lst_end = self.seq
             self.seq = [lst_bgn, lst_end]
-        else:
+        elif prn:
             print('info: prm needs ["dct","eql"] for format [{x:y}, [[x,x],[a,b]]].')
+        else:
+            pass
         if spr:
             self.spr_nit()
         if rtn:

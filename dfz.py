@@ -5,7 +5,7 @@ Created on Fri Mar 22 16:30:38 2019
 dataframe operation.
 @author: zoharslong
 """
-from numpy import nan as np_nan, max as np_max, min as np_min
+from numpy import nan as np_nan, max as np_max, min as np_min, sum as np_sum
 from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
@@ -100,19 +100,27 @@ class clmMixin(dfBsc):
     def fll_clm_na(self, *args, spr=False, rtn=False, prm=None):
         """
         fill columns' na cells.
-        >>> from pandas import DataFrame
-        >>> from numpy import nan as np_nan
         >>> tst = clmMixin(DataFrame([{'A':np_nan,'B':1}]),spr=True)
         >>> tst.fll_clm_na({'A':1}, rtn=True)
              A  B
         0  1.0  1
+        >>> tst = dfz(DataFrame([{'A':1,'B':1},{'A':np_nan,'B':1}]),spr=True)
+        >>> tst.fll_clm_na(prm='ffill')
+             A  B
+        0  1.0  1
+        1  1.0  1
         :param args: columns and values to be filled. 填入两个列表或一个字典，表达对列中空缺值的填充关系
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :param prm: method of fill na, in ['backfill', 'bfill', 'pad', 'ffill', None]
         :return: if rtn is True, return self.dts
         """
-        dct_fll = lsz(args)._rg_to_typ(prm='dct', rtn=True) if args else None
+        if len(args) == 0:
+            dct_fll = None
+        elif len(args) == 1:
+            dct_fll = args[0]
+        else:
+            dct_fll = lsz(args)._rg_to_typ(prm='dct', rtn=True)
         self.dts = self.dts.fillna(value=dct_fll, method=prm)
         if spr:
             self.spr_nit()
@@ -513,10 +521,16 @@ class clmMixin(dfBsc):
             return self.dts
 
     def cod_clm_md5(self, *args, spr=False, rtn=False, prm=None):
-        """"""
+        """
+        endocd column contents by md5.
+        :param args: columns' name in a list, format in (targetColumn,), ([targetColumns]), (targetColumn, newColumn)
+        :param spr:
+        :param rtn:
+        :param prm:
+        :return:
+        """
         dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
         lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
-        print(dct_rgs)
         self.ltr_clm_typ(lst_old, 'str')
         for i in range(len(lst_clm)):
             self.dts[lst_clm[i]] = self.dts.apply(lambda x: stz(x[lst_old[i]]).ncd_md5(rtn=True, prm=prm), axis=1)
@@ -741,7 +755,6 @@ class dcmMixin(dfBsc):
                 dtf_tmp = dtf_tmp[lst_clm_grp_tmp]
                 dtf_tmp.rename(columns={i_clm: clm_vls}, inplace=True)
                 lst_dtf.append(dtf_tmp)  # 拼接用于for循环结束后的concat环节
-        print(lst_dtf)
         self.dts = concat(lst_dtf, axis=0).reset_index(drop=False)
         if spr:
             self.spr_nit()
@@ -925,22 +938,61 @@ class pltMixin(cllMixin):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(pltMixin, self).__init__(dts, lcn, spr=spr)
 
-    def gnr_per(self, *args, lst_clm, str_tls='_pop'):
-        """求环比变化率"""
-        if lst_clm is None:
-            lst_clm = list(self.clm).copy()
-            for i_prd in ['x_prd', 'x_week', 'x_date', 'x_day', 'x_mnth', 'do_day', 'do_date']:
-                try:
-                    lst_clm.remove(i_prd)
-                except ValueError:
-                    pass
-        for i_clm in lst_clm:
+    def add_clm_mom(self, *args, prm=None):
+        """
+        求环比变化率, add columns on month over month.
+        >>> tst =dfz([{'A':'1','B':100},{'A':'2','B':110},{'A':'4','B':150},{'A':'3','B':100},])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_mom('B','b',prm='A')
+           A    B       b
+        0  1  100     NaN
+        1  2  110  0.1000
+        2  3  100 -0.0909
+        3  4  150  0.5000
+        :param args: target columns' name in format (x,) ,(oldColumn, newColumn), ({oldColumn: newColumn})
+        :param prm: sorted documents by which columns before generating mom
+        :return: None
+        """
+        if prm:
+            self.srt_dcm(prm)
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        lst_clm = list(dct_rgs.keys())
+        lst_new = [i+'_pop' for i in dct_rgs.keys()] if len(args) == 1 and type(args[0]) not in [dict] else \
+            list(dct_rgs.values())
+        for k in range(len(lst_clm)):
             for i in range(1, self.len):
-                if self.dts.loc[i - 1, i_clm] > 0:
-                    self.dts.loc[i, i_clm + str_tls] = round(
-                        100 * (self.dts.loc[i, i_clm] - self.dts.loc[i - 1, i_clm]) / self.dts.loc[i - 1, i_clm], 1)
-            self.fll_clm_na({i_clm + str_tls: 0})
-            self.ltr_clm_rpc([i_clm + str_tls], -100, 0)
+                if self.dts.loc[i - 1, lst_clm[k]] > 0:
+                    self.dts.loc[i, lst_new[k]] = round((self.dts.loc[i, lst_clm[k]] - self.dts.loc[i - 1, lst_clm[k]]) / self.dts.loc[i - 1, lst_clm[k]], 4)
+
+    def add_clm_per(self, lst_grb, *args, prm=True):
+        """
+        add columns on each documents percents of each group. 根据某个分组汇总后计算每一行在该分组总量中的占比并形成新列.
+        >>> tst =dfz([{'A':'a','B':100},{'A':'a','B':110},{'A':'b','B':150},{'A':'c','B':100},])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_per('A', 'B', 'b', prm=False)
+           A    B       b
+        0  a  100  0.4762
+        1  a  110  0.5238
+        2  b  150  1.0000
+        3  c  100  1.0000
+        :param lst_grb: 用于分组的变量名列表
+        :param args: 需要计算值的比例的变量名列表
+        :param prm: if drop template columns '_sum_x' or not, default True=drop.
+        :return: None
+        """
+        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_grb = dct_rgs.copy()
+        for i in dct_grb.keys():
+            dct_grb[i] = np_sum
+        dtmp = self.dts.copy()
+        dsrt = self.stt_clm(lst_grb, dct_grb, prm=['_sum_'+i for i in dct_grb.keys()], rtn=True)
+        self.dts = dtmp
+        self.mrg_dtf(dsrt, lst_grb, prm='left')
+        for i in dct_rgs.keys():
+            self.dts[dct_rgs[i]] = self.dts.apply(lambda x: round(x[i]/x['_sum_'+i], 4), axis=1)
+        self.dts_nit()
+        if prm:
+            self.drp_clm(['_sum_'+i for i in dct_grb.keys()])
 
 
 class dfz(tmsMixin, pltMixin):
