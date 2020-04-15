@@ -911,11 +911,12 @@ class dtz(object):
             elif int_dyr < 100:
                 int_dyr = int(int_dyr + 1900)
             int_dwk = int(self.val.rsplit('w')[1])
-            dtt_jan = typ_dt_date(int_dyr, 1, 4)
+            dtt_jan = dt_datetime(int_dyr, 1, 4)
             dtt_dlt = typ_dt_timedelta(dtt_jan.isoweekday() - 1)
             bgn_dyr = dtt_jan - dtt_dlt
+            ltr_dlt = typ_dt_timedelta(seconds=60*60*24-1) if flt_dlt < 0 else typ_dt_timedelta(days=0)
             flt_dlt = 8 + flt_dlt if flt_dlt < 0 else flt_dlt
-            self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1)
+            self.val = bgn_dyr + typ_dt_timedelta(days=flt_dlt-1, weeks=int_dwk-1) + ltr_dlt
         else:
             print('info: {}, {} not in [\'%Yw%w\',\'%yw%w\']'.format(self.val, self.fmt))
         if rtn:
@@ -939,8 +940,9 @@ class dtz(object):
             if int_max - flt_dlt < 0:
                 raise KeyError('this month has only %s days' % str(int_max))
             else:
+                ltr_dlt = typ_dt_timedelta(seconds=60*60*24-1) if flt_dlt < 0 else typ_dt_timedelta(days=0)
                 int_day = flt_dlt if flt_dlt > 0 else int_max + 1 + flt_dlt
-                self.val = dt_datetime(int_dyr, int_dmh, int_day)
+                self.val = dt_datetime(int_dyr, int_dmh, int_day) + ltr_dlt
         else:
             print('info: {}, {} not in [\'%Ym%m\',\'%ym%m\']'.format(self.val, self.fmt))
         if rtn:
@@ -967,6 +969,8 @@ class dtz(object):
         export the edg of period value in format '[0-9]{2,4}[wm][0-9]{2}'.
         >>> dtz('20w14').edg_of_prd([1, -1], rtn=True)
         ['2020-03-30', '2020-04-05']
+        >>> dtz('20w14').edg_of_prd([1, -1], str_fmt='%Y-%m-%d %H:%M:%S', rtn=True)
+        ['2020-03-30 00:00:00', '2020-04-05 23:59:59']  # 若lst_flt中的元素为负则时间默认取当天的最后一秒
         :param lst_flt: a list of float in self.val period
         :param str_typ: type of the result
         :param str_fmt: format of the result if type is str
@@ -1023,34 +1027,3 @@ class dtz(object):
                     (lst_dtt[0]+typ_dt_timedelta(days=i)).date() != lst_dtt[1].date()]
         if rtn:
             return self.val
-
-
-# def fnc_lst_dtt_bth(lst_mpt, flt_len, lst_typ=None, lst_fmt=None, bln_day=True, str_typ='list', lst_dct=None):
-#     """
-#     function separating a list of datetime in batches
-#     eg.param: (['2016-01-01','2018-01-08'], 500, 'str','%Y-%m-%d',True,'[dict]',['RegDate_from','RegDate_to'])
-#     :param lst_mpt: a list of datetime in format [datetime_beginning, datetime_ending]
-#     :param flt_len: the width of a batch
-#     :param lst_typ: the type of list input and output, in format ['str','str']
-#     :param lst_fmt: the format of list input and output if type is 'str', informat ['%Y-%m-%d','%Y-%m-%d']
-#     :param bln_day: the unit of batches is day or short than a day, default True
-#     :param str_typ: 'list' -> [[A,B],[C,D],..]; 'listT' -> [[A,C,...],[B,D,...]]; '[dict]' -> [{A,B},{C,D},...]
-#     :param lst_dct: define columns' names if str_typ is '[dict]', default [{'beginning':A,'end':B},...]
-#     :return: a list of datetime batches, default in format [[tms_011,tms_012],[tms_021,tms_022],...]
-#     """
-#     lst_typ = [None, 'str'] if lst_typ is None else fnc_lst_cpy_cll(lst_typ, 2)         # 未指定时默认输出str
-#     if lst_fmt is None:                                                                 # 未指定时默认输出标准格式
-#         lst_fmt = [None, '%Y-%m-%d'] if bln_day else [None, '%Y-%m-%d %H:%M:%S']
-#     else:
-#         lst_fmt = fnc_lst_cpy_cll(lst_fmt, 2)
-#     lst_mpt[0], lst_mpt[1] = fnc_tms_frm_all(lst_mpt[0]), fnc_tms_frm_all(lst_mpt[1])   # 进入长度2的list，转化为tms
-#     lst_xpt = []
-#     dtm_bdt = lst_mpt[0]                                                                # 时间段初次赋值
-#     dtm_edt = lst_mpt[0] + typ_dt_timedelta(days=(flt_len-(1 if bln_day is True else 0)))
-#     while (lst_mpt[1] - dtm_bdt).days >= 0:
-#         stm_bdt = fnc_dtt_frm_tdy(0, lst_typ[1], lst_fmt[1], dtm_bdt)                   # 时间段输出格式转换
-#         stm_edt = fnc_dtt_frm_tdy(0, lst_typ[1], lst_fmt[1], dtm_edt if dtm_edt < lst_mpt[1] else lst_mpt[1])
-#         lst_xpt.append([stm_bdt, stm_edt])                                              # 格式转换后时间段追加入输出列表
-#         dtm_bdt = dtm_bdt + typ_dt_timedelta(days=flt_len) if bln_day else dtm_edt + typ_dt_timedelta(seconds=1)    # 时间段递增
-#         dtm_edt += typ_dt_timedelta(days=flt_len)                                                               # 时间段递增
-#     return fnc_lst_to_thr(lst_xpt, str_typ, lst_dct)

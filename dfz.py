@@ -672,11 +672,11 @@ class dcmMixin(dfBsc):
                 self.dts = self.dts.loc[self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
             elif prm is True or prm in ['drop', 'drp']:     # 当drop 或prm='drop'时，删除完全匹配的行
                 self.dts = self.dts.loc[~self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
-            elif prm in ['partDrop', 'prtDrp']:     # 当prm='partDrop'时，删除正则匹配的行
+            elif prm.lower() in ['partdrop', 'droppart', 'prtdrp', 'drpprt']:   # 当prm='partDrop'时，删除正则匹配的行
                 lst_ndx = [k for j in lst_ctt[i] for k in self.dts.index if
                            re_search(j, str(self.dts.loc[k, lst_clm[i]]))]
                 self.dts = self.dts.drop(lst_ndx, axis=0)
-            elif prm in ['partKeep', 'prtKep']:     # 当prm='partKeep'时，保留正则匹配的行
+            elif prm.lower() in ['partkeep', 'keeppart', 'prtkep', 'kepprt']:   # 当prm='partKeep'时，保留正则匹配的行
                 lst_ndx = [k for j in lst_ctt[i] for k in self.dts.index if
                            re_search(j, str(self.dts.loc[k, lst_clm[i]]))]
                 lst_ndx = [i for i in self.dts.index if i not in lst_ndx]
@@ -817,11 +817,14 @@ class cllMixin(dcmMixin, clmMixin):
         if spr:
             self.spr_nit()
         if rtn:
-            return self.dts.to_dict()
+            return self.dts
 
-    def t(self):
+    def t(self, *, spr=False, rtn=False):
         """
-        对第一行第一列为坐标轴的dataframe进行转置
+        对第一行第一列为坐标轴的dataframe进行转置.
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return:
         """
         str_clm_tgt = self.clm[0]
         dtmp = self.dts.T
@@ -833,6 +836,10 @@ class cllMixin(dcmMixin, clmMixin):
         lst_clm_srt.remove(str_clm_tgt)
         lst_clm_srt = [str_clm_tgt] + lst_clm_srt
         self.srt_clm(lst_clm_srt, drp=False)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 
 class tmsMixin(cllMixin):
@@ -938,7 +945,7 @@ class pltMixin(cllMixin):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(pltMixin, self).__init__(dts, lcn, spr=spr)
 
-    def add_clm_mom(self, *args, prm=None):
+    def add_clm_mom(self, *args, spr=False, rtn=False, prm=None):
         """
         求环比变化率, add columns on month over month.
         >>> tst =dfz([{'A':'1','B':100},{'A':'2','B':110},{'A':'4','B':150},{'A':'3','B':100},])
@@ -950,6 +957,8 @@ class pltMixin(cllMixin):
         2  3  100 -0.0909
         3  4  150  0.5000
         :param args: target columns' name in format (x,) ,(oldColumn, newColumn), ({oldColumn: newColumn})
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
         :param prm: sorted documents by which columns before generating mom
         :return: None
         """
@@ -963,8 +972,13 @@ class pltMixin(cllMixin):
             for i in range(1, self.len):
                 if self.dts.loc[i - 1, lst_clm[k]] > 0:
                     self.dts.loc[i, lst_new[k]] = round((self.dts.loc[i, lst_clm[k]] - self.dts.loc[i - 1, lst_clm[k]]) / self.dts.loc[i - 1, lst_clm[k]], 4)
+        self.dts_nit()
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
-    def add_clm_per(self, lst_grb, *args, prm=True):
+    def add_clm_per(self, lst_grb, *args, spr=False, rtn=False, prm=True):
         """
         add columns on each documents percents of each group. 根据某个分组汇总后计算每一行在该分组总量中的占比并形成新列.
         >>> tst =dfz([{'A':'a','B':100},{'A':'a','B':110},{'A':'b','B':150},{'A':'c','B':100},])
@@ -977,6 +991,8 @@ class pltMixin(cllMixin):
         3  c  100  1.0000
         :param lst_grb: 用于分组的变量名列表
         :param args: 需要计算值的比例的变量名列表
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
         :param prm: if drop template columns '_sum_x' or not, default True=drop.
         :return: None
         """
@@ -993,6 +1009,10 @@ class pltMixin(cllMixin):
         self.dts_nit()
         if prm:
             self.drp_clm(['_sum_'+i for i in dct_grb.keys()])
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 
 class dfz(tmsMixin, pltMixin):
