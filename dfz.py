@@ -630,7 +630,7 @@ class dcmMixin(dfBsc):
         :param scd: if len(args) == 2, define the sorting method
         :param spr: let self = self.dts
         :param rtn: default False, return None
-        :param prm: dropping method, in ['first','last',None], default first
+        :param prm: dropping method, in ['first','last', 'keep'], default first, keep means keep duplicates in self.dts
         :param prn: print detail of dropping duplicates or not, default True
         :return: if rtn is True, return self.dts
         """
@@ -640,6 +640,8 @@ class dcmMixin(dfBsc):
             self.srt_dcm(lst_srt, scd)
         len_bfr = self.len
         self.dts = self.dts.drop_duplicates(subset=lst_dpl, keep=prm)
+        if prm.lower in ['keep']:
+            self.drp_dcm(list(self.dts.drop_duplicates(subset=lst_dpl, keep=False).index))
         if prn:
             print("info: drop duplicate documents, %.i in total %.i left, from <%s>." % (len_bfr, self.len, self))
         if spr:
