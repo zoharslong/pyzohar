@@ -17,10 +17,12 @@ from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, Exce
 from os import path
 from os.path import exists
 # from socket import getfqdn, gethostname                               # 获得本机IP
+from telnetlib import Telnet                                            # 本机或代理ip检测的第二种方法
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
-from requests import post
+from requests import post, get
+from re import findall as re_find
 from json import loads, JSONDecodeError
 from .bsc import stz, lsz, dcz
 
@@ -159,9 +161,13 @@ class ioBsc(pd_DataFrame):
 
     def api_nit(self):
         if 'pst' not in self.lcn.keys():
-            self.lcn['pst'] = None
+            self.lcn['pst'] = None      # post请求中在请求data中发送的参数数据
         if 'hdr' not in self.lcn.keys():
-            self.lcn['hdr'] = None
+            self.lcn['hdr'] = None      # 请求头
+        if 'prx' not in self.lcn.keys():
+            self.lcn['prx'] = None      # 是否调用代理
+        if 'prm' not in self.lcn.keys():
+            self.lcn['prm'] = None      # get请求中后缀于url的参数
 
     def dts_nit(self, ndx_rst=True, ndx_lvl=None):
         """
@@ -653,21 +659,160 @@ class apiMixin(ioBsc):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
-    def api_run(self, *, spr=False, rtn=False):
-        mdl_rqt = post(self.lcn['url'], data=self.lcn['pst'], headers=self.lcn['hdr'], timeout=300)
-        mdl_rqt.encoding = "utf-8"
+    def _pi_prx_jgw(self, prm='http'):
+        """
+        get proxy from jiguang api. 从极光代理获取一个代理ip地址
+        from http://h.jiguangdaili.com/api/new_api.html
+        :param prm: in ['http', 'https']
+        :return: None, 一个有效的
+        """
+        dct_jgw = {
+            'url': 'http://d.jghttp.golangapi.com/getip',
+            'prm': {
+                'num': '1',         # 一次请求的数量
+                'type': '2',        # json type
+                'pro': '440000',    # 广东
+                'city': '440100',   # 广州
+                'yys': '0',
+                'port': '1',        # 1 for http, 11 for https
+                'pack': '20855',    # customer ID
+                'time': '1',        # [1,2,3] for different available time period
+                'ts': '0',
+                'ys': '0',
+                'cs': '0',
+                'lb': '1',
+                'sb': '0',
+                'pb': '4',
+                'mr': '1',
+                'regions': '',
+            },
+            'ppc': {'key': ['data']},
+        }
+        dct_jgw['prm']['port'] = '1' if prm == 'http' else '11'
+        htp = 'http' if dct_jgw['prm']['port'] == '1' else 'https'
+        rtn, ipp_prx, bch = False, None, 0
+        while not rtn and bch <= 3:
+            mdl_prx = get(dct_jgw['url'], params=dct_jgw['prm'], timeout=30)
+            mdl_prx.encoding = "utf-8"
+            txt_prx = loads(mdl_prx.text)['data']
+            try:                    # 尝试拼接标准格式的proxy
+                ipp_prx = htp + '://' + str(txt_prx[0]['ip']) + ':' + str(txt_prx[0]['port'])
+                rtn = True
+            except IndexError:      # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
+                if re_find('请添加白名单(.*$)', txt_prx['msg']):
+                    wht = re_find('请添加白名单(.*$)', txt_prx['msg'])[0]
+                    url_wht = 'http://webapi.jghttp.golangapi.com/index/index/save_white'
+                    dct_wht = {
+                        'neek': '18724',
+                        'appkey': '1fc131e1f4fd096f4722a5ed3ff66a45',
+                        'white': wht
+                    }
+                    get(url_wht + wht, params=dct_wht)
+                else:               # 当API异常并不是由于白名单问题造成时报错
+                    raise KeyError('stop: something wrong with the result <%s>.' % str(mdl_prx.text))
+            finally:
+                bch += 1
+            if bch == 3:
+                raise AttributeError('stop: something wrong with jiguang API, max retry.')
+        if ipp_prx:
+            self.lcn['prx'] = {htp: ipp_prx}
+
+    def _pi_ipl(self, url="http://icanhazip.com/"):
+        """
+        返回本机当次的ip地址（若self.lcn.prx存在则返回该代理的ip地址）. get local ip from API.
+        from https://blog.csdn.net/weixin_44285988/article/details/102837864
+        from https://www.cnblogs.com/hankleo/p/11771682.html
+        >>> from telnetlib import Telnet
+        >>> Telnet('116.22.50.144', '4526', timeout=2)
+        <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
+        :param url: 用于返回本次使用的本机或代理ip的API地址
+        :return: ip location in str
+        """
+        if self.lcn['prx'] in ['auto']:
+            raise AttributeError('stop: self.lcn.prx is auto, proxy does not available yet. run api_prx before this.')
+        mdl_rqt = get(url, proxies=self.lcn['prx'], timeout=30)
+        if mdl_rqt.status_code == 200:
+            return mdl_rqt.text.replace('\n', '')
+        elif mdl_rqt.status_code == 502:
+            return 'stop: 502 - connection timed out.'
+        else:
+            return mdl_rqt
+
+    def _pi_prx_chk(self):
+        """
+        API: if proxies is alright, return True, else return False.
+        :return: True or False for a good proxy
+        """
+        if self.lcn['prx'] in [None, 'auto']:
+            return False
+        elif re_find(self._pi_ipl(), self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
+            return True     # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
+        else:
+            return False
+
+    def api_prx(self, frc=False, prm='http'):
+        """
+        当self.lcn.prx代理不为空, 即采用代理时, 调用代理是否有效的检查，若无效则更新代理, 更新五次失败则报错
+        :param frc: forced refresh, default False means not refresh if ip test is passed
+        :param prm: in ['http','https'], default 'http'
+        :return:
+        """
+        if self.lcn['prx']:
+            if frc: # 强制
+                self._pi_prx_jgw(prm=prm)
+            bch = 0
+            while not self._pi_prx_chk() and bch <= 3:
+                self._pi_prx_jgw(prm=prm)
+                bch += 1
+                if bch == 3:
+                    raise AttributeError('stop: max retry, cannot pass proxy test for 3 times.')
+
+    def api_run(self, *, spr=False, rtn=False, prm='post', frc=True):
+        """
+        兼容POST/GET两种方法的调用
+        from https://www.cnblogs.com/roadwide/p/10804888.html
+        :param spr:
+        :param rtn:
+        :param prm:
+        :param frc:
+        :return:
+        """
+        # 针对post请求, 注意self.lcn.pst参数
+        prc, bch, mdl_rqt = True, 0, None
+        while prc and bch <= 3:     # 满足本次请求的返回statusCode为200即请求成功, 或循环五次失败
+            # 针对POST请求, 注意self.lcn.prm参数
+            if prm in ['post']:
+                mdl_rqt = post(self.lcn['url'],
+                               params=self.lcn['prm'], data=self.lcn['pst'],
+                               headers=self.lcn['hdr'], proxies=self.lcn['prx'],
+                               timeout=300)
+            # 针对GET请求, 注意self.lcn.prm参数
+            elif prm in ['get']:
+                mdl_rqt = get(self.lcn['url'],
+                              params=self.lcn['prm'], data=self.lcn['pst'],
+                              headers=self.lcn['hdr'], proxies=self.lcn['prx'],
+                              timeout=300)
+            else:
+                raise AttrbuteError('stop: api_run.prm needs ["post", "get"] for [requests.post, requests.get].')
+            mdl_rqt.encoding = "utf-8"
+            if mdl_rqt.status_code == 200:
+                prc = False             # 当本次POST/GET请求获得200返回码时, 进入结果装载环节
+            else:
+                self.api_prx(frc=frc)   # 当本次POST/GET请求未能得到200时, 代理强制更新
+            bch += 1
+            if bch == 3:
+                raise TimeoutError('stop: max batches.')
+        # 请求阶段结束, 进入API结果的装载阶段
         try:
-            try:
-                self.dts = loads(mdl_rqt.text)
-            except JSONDecodeError:
-                self.dts = mdl_rqt.text
-            if spr:
-                self.spr_nit()
-            if rtn:
-                return self.dts
+            self.dts = loads(mdl_rqt.text)
+        except JSONDecodeError:
+            self.dts = mdl_rqt.text
         except ValueError:
-            print(mdl_rqt.text[0:100])
-            raise KeyError("cannot load data")
+            print('stop: something wrong with <%s>.' % mdl_rqt.text[0:100])
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
     def get_vls(self, lst_kys, *, spr=False, rtn=False):
         """
@@ -690,8 +835,8 @@ class apiMixin(ioBsc):
                     print(str(self.__dts)[:8]+'..')
                     raise KeyError('%s do not exist' % i)
 
-    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False):
-        self.api_run()
+    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False):
+        self.api_run(prm=prm, frc=frc)
         self.get_vls(lst_kys)
         if spr:
             self.spr_nit()
