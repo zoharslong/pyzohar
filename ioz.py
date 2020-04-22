@@ -15,6 +15,7 @@ from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义
 from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGroupBy     # 定义dataframe.groupby类型
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
 from os import path
+from time import sleep
 from os.path import exists
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from telnetlib import Telnet                                            # 本机或代理ip检测的第二种方法
@@ -193,9 +194,11 @@ class ioBsc(pd_DataFrame):
             self.vls = self.dts.values()
         except (AttributeError, TypeError):
             lst_xcp.append('values')
-        self.clm = self.dts.columns if self.typ in [typ_pd_DataFrame] else self.clm
-        self.hdr = self.dts.head() if self.typ in [typ_pd_DataFrame] else self.hdr
-        self.tal = self.dts.tail() if self.typ in [typ_pd_DataFrame] else self.tal
+        if self.typ in [typ_pd_DataFrame]:
+            self.clm = self.dts.columns
+            self.hdr = self.dts.head()
+            self.tal = self.dts.tail()
+        self.hdr = self.dts[:5] if self.typ in [list] else self.hdr
         try:
             if ndx_rst:
                 self.dts.reset_index(drop=True, inplace=True, level=ndx_lvl)
@@ -216,7 +219,7 @@ class ioBsc(pd_DataFrame):
             self.iot.append('sql')
         if [True for i in self.lcn.keys() if i in ['mdb']] == [True]:
             self.iot.append('mng')
-        if [True for i in self.lcn.keys() if i in ['url']] == [True]:
+        if set([True for i in self.lcn.keys() if re_find('url', i)]) in [{True}]:
             self.iot.append('api')
         if not self.iot and prn:
             print(' info: <.lcn: %s> is not available.' % self.lcn)
@@ -495,20 +498,20 @@ class mngMixin(ioBsc):
 
     def mng_mpt(self, dct_qry=None, lst_clm=None, *, prm=None, spr=False, rtn=False):
         """
-        import data from mongo to RAM.
-        @param dct_qry:
-        @param lst_clm:
-        @param prm:
+        import data from mongodb to RAM.
+        @param dct_qry: a dict of query
+        @param lst_clm: default not import _id
+        @param prm: if prm in ['one'], find one document from the collection
         @param spr:
         @param rtn:
         @return:
         """
         dct_qry = {} if not dct_qry else dct_qry
-        dct_clm = {'_id': 0} if prm is None else prm
+        dct_clm = {'_id': 0}
         if lst_clm is not None:
             dct_clm.update(dcz().typ_to_dct(lst_clm, 1, rtn=True))
-        prc_find = self._myCln.find(dct_qry, dct_clm)
-        self.dts = [dct_xpt for dct_xpt in prc_find]
+        prc_find = self._myCln.find(dct_qry, dct_clm) if prm is None else [self._myCln.find_one(dct_qry, dct_clm)]
+        self.dts = [dct_xpt for dct_xpt in prc_find] if prc_find not in [None, [None]] else []
         if spr:
             self.spr_nit()
         if rtn:
@@ -675,7 +678,7 @@ class apiMixin(ioBsc):
                 'city': '440100',   # 广州
                 'yys': '0',
                 'port': '1',        # 1 for http, 11 for https
-                'pack': '20855',    # customer ID
+                # 'pack': '20855',  # 套餐ID, 无套餐直接使用余额则为空
                 'time': '1',        # [1,2,3] for different available time period
                 'ts': '0',
                 'ys': '0',
@@ -694,20 +697,25 @@ class apiMixin(ioBsc):
         while not rtn and bch <= 3:
             mdl_prx = get(dct_jgw['url'], params=dct_jgw['prm'], timeout=30)
             mdl_prx.encoding = "utf-8"
-            txt_prx = loads(mdl_prx.text)['data']
+            dct_prx = loads(mdl_prx.text)
             try:                    # 尝试拼接标准格式的proxy
-                ipp_prx = htp + '://' + str(txt_prx[0]['ip']) + ':' + str(txt_prx[0]['port'])
+                ipp_prx = htp + '://' + str(dct_prx['data'][0]['ip']) + ':' + str(dct_prx['data'][0]['port'])
                 rtn = True
             except IndexError:      # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
-                if re_find('请添加白名单(.*$)', txt_prx['msg']):
-                    wht = re_find('请添加白名单(.*$)', txt_prx['msg'])[0]
+                # {"code":113,"data":[],"msg":"请添加白名单xxx.xx.xxx.xxx","success":false}
+                if dct_prx['msg'] in [113, '113']:
+                    wht = re_find('请添加白名单(.*$)', dct_prx['msg'])[0]
                     url_wht = 'http://webapi.jghttp.golangapi.com/index/index/save_white'
                     dct_wht = {
                         'neek': '18724',
                         'appkey': '1fc131e1f4fd096f4722a5ed3ff66a45',
                         'white': wht
                     }
-                    get(url_wht + wht, params=dct_wht)
+                    get(url_wht, params=dct_wht)
+                    sleep(3)        # 添加白名单的操作后需要等待2秒
+                # {"code":111,"data":[],"msg":"请2秒后再试","success":false}
+                elif re_find('请(\d+)秒后再试', dct_prx['msg']):
+                    sleep(int(re_find('请(\d+)秒后再试', dct_prx['msg'])[0])+1)
                 else:               # 当API异常并不是由于白名单问题造成时报错
                     raise KeyError('stop: something wrong with the result <%s>.' % str(mdl_prx.text))
             finally:
@@ -758,8 +766,8 @@ class apiMixin(ioBsc):
         :return:
         """
         if self.lcn['prx']:
-            if frc: # 强制
-                self._pi_prx_jgw(prm=prm)
+            if frc:
+                self._pi_prx_jgw(prm=prm)       # 强制更新一次proxy
             bch = 0
             while not self._pi_prx_chk() and bch <= 3:
                 self._pi_prx_jgw(prm=prm)
@@ -778,6 +786,7 @@ class apiMixin(ioBsc):
         :return:
         """
         # 针对post请求, 注意self.lcn.pst参数
+        self.api_prx()              # 初始化更新proxy, 仅用于处理prx='auto'的情况
         prc, bch, mdl_rqt = True, 0, None
         while prc and bch <= 3:     # 满足本次请求的返回statusCode为200即请求成功, 或循环五次失败
             # 针对POST请求, 注意self.lcn.prm参数
