@@ -413,7 +413,7 @@ class lsz(list):
     def nfd(self, spr=False, rtn=False):
         """
         unfold lists in lsz.seq.
-        >>> lsz([[1,2],3,[4,5,[6,7,[8,9]]]]).nfd(False,True)
+        >>> lsz([[1,2],3,[4,5,[6,7,[8,9]]]]).nfd(rtn=True)
         [1, 2, 3, 4, 5, 6, 7, 8, 9]
         :param spr: let lsz = lsz.seq or not, default False
         :param rtn: return the result or not, default False
@@ -485,23 +485,24 @@ class lsz(list):
         if rtn:
             return self.seq
 
-    def _rg_to_typ(self, *, spr=False, rtn=False, prm=None, prn=False):
+    def rgs_to_typ(self, *, spr=False, rtn=False, prm=None, prn=False):
         """
         args in functions to list. 仅用于函数中对*args的处理.
-        >>> lsz(('a',))._rg_to_typ(rtn=True)
+        >>> lsz(('a',)).rgs_to_typ(rtn=True)
         ['a', 'a']
-        >>> lsz(({'a':'b'},))._rg_to_typ(rtn=True)
+        >>> lsz(({'a':'b'},)).rgs_to_typ(rtn=True)
         [['a'], ['b']]
-        >>> lsz((['a','b'],'x'))._rg_to_typ(prm='dct', rtn=True)
+        >>> lsz((['a','b'],'x')).rgs_to_typ(prm='dct', rtn=True)
         {'a': 'x', 'b': 'x'}
-        >>> lsz((['a','c'],'b'))._rg_to_typ(prm='list',rtn=True)
+        >>> lsz((['a','c'],'b')).rgs_to_typ(prm='list',rtn=True)
         [['a', 'c'], ['b', 'b']]
-        >>> lsz(('a',['b','c']))._rg_to_typ(prm='list',rtn=True)
+        >>> lsz(('a',['b','c'])).rgs_to_typ(prm='list',rtn=True)
         [['a', 'a'], ['b', 'c']]
         :param prm: in ['equal', 'eql', 'dict', 'dct']
-        :param spr:
-        :param rtn:
-        :return:
+        :param spr: super self.seq to self or not, default False
+        :param rtn: return or not, default False
+        :param prn: print or not, default False
+        :return: None if not rtn
         """
         if self.seq in [None, []]:
             pass
@@ -698,7 +699,7 @@ class dtz(object):
     type datetime altered by zoharslong.
     >>> dtz(15212421.1).typ_to_dtt(rtn=True)    # from any type to datetime
     datetime.datetime(1970, 6, 26, 9, 40, 21)
-    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ('str', rtn=True)   # from datetime to any type
+    >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).dtt_to_typ(rtn=True)   # from datetime to any type
     '1970-06-26'
     >>> dtz(dtz(15212421.1).typ_to_dtt(rtn=True)).shf(5, rtn=True)    # 5 days after 1970-06-26 in type datetime
     datetime.datetime(1970, 7, 1, 9, 40, 21)

@@ -15,13 +15,17 @@ from .ioz import ioz
 
 
 class dfBsc(ioz):
-
+    """
+    dataFrame Basic.
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(dfBsc, self).__init__(dts, lcn, spr=spr)
 
 
 class clmMixin(dfBsc):
-
+    """
+    methods Mixin for columns.
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(clmMixin, self).__init__(dts, lcn, spr=spr)
 
@@ -120,7 +124,7 @@ class clmMixin(dfBsc):
         elif len(args) == 1:
             dct_fll = args[0]
         else:
-            dct_fll = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+            dct_fll = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         self.dts = self.dts.fillna(value=dct_fll, method=prm)
         if spr:
             self.spr_nit()
@@ -167,7 +171,7 @@ class clmMixin(dfBsc):
         :param prm: new name for static columns, default remain old names if None
         :return: if rtn is True, return self.dts
         """
-        dct_stt = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_stt = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_stt = list(dct_stt.keys())
         self.dts = self.dts.groupby(lsz(lst_clm).typ_to_lst(rtn=True))
         self.dts = self.dts.aggregate(dct_stt).reset_index(drop=False)
@@ -196,7 +200,7 @@ class clmMixin(dfBsc):
         :param prm: a list of regex to be found in old columns
         :return: if rtn is True, return self.dts
         """
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_clm, lst_new = list(dct_rgs.keys()), list(dct_rgs.values())
         prm = lsz(prm)
         prm.typ_to_lst()
@@ -222,9 +226,9 @@ class clmMixin(dfBsc):
         for i in range(self.len):
             len_tmp = len(self.dts[str_clm][i]) if type(self.dts[str_clm][i]) is list else 1  # 兼容{}, [{},{}]两种输入
             dtf_i = DataFrame(self.dts[str_clm][i], index=[int(i)]*len_tmp)
-            dtf_dtl = concat([dtf_dtl, dtf_i], axis=0, sort=False)
+            dtf_dtl = concat([dtf_dtl, dtf_i])  # default prm axis=0, sort=False
         self.dts.drop([str_clm], axis=1, inplace=True)
-        self.dts = concat([dtf_dtl, self.dts], axis=1, join='outer', sort=False)
+        self.dts = concat([dtf_dtl, self.dts], axis=1)  # default prm join='outer', sort=False
         if spr:
             self.spr_nit()
         if rtn:
@@ -295,7 +299,7 @@ class clmMixin(dfBsc):
         :param rtn: default False, return None
         :return: if rtn, return self.dts
         """
-        lst_rgs = lsz(args)._rg_to_typ(rtn=True)
+        lst_rgs = lsz(args).rgs_to_typ(rtn=True)
         str_mpt, str_xpt = lst_rgs[0], lst_rgs[1]
         flt_min = np_min(self.dts[str_mpt])     # 自动产生分箱的上下界
         flt_max = np_max(self.dts[str_mpt])
@@ -353,7 +357,7 @@ class clmMixin(dfBsc):
         :param prm: in [None, 'part', function]
         :return: if rtn is True, return self.dts
         """
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_old, lst_new = list(dct_rgs.keys()), list(dct_rgs.values())
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
         for i in range(len(lst_clm)):
@@ -388,7 +392,7 @@ class clmMixin(dfBsc):
         :return: if rtn is True, return self.dts
         """
         # *args预处理
-        dct_typ = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_typ = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         # 转化部分
         for i_clm in [i for i in dct_typ.keys() if dct_typ[i] in ['lower', 'lwr']]:
             self.dts[i_clm] = self.dts.apply(lambda x: x[i_clm].lower() if type(x[i_clm]) is str else x[i_clm], axis=1)
@@ -413,7 +417,7 @@ class clmMixin(dfBsc):
         :param prn: print cells that cannot convert into float
         :return: if prn is True, return unusual cells; if not prn and rtn, return self.dts
         """
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
         lst_ttl = []
         for i in range(len(lst_clm)):
@@ -450,7 +454,7 @@ class clmMixin(dfBsc):
         :param prm: decimal scales. default 2
         :return: if rtn is True, return self.dts
         """
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
         prm = lsz(prm)
         prm.typ_to_lst()
@@ -480,7 +484,7 @@ class clmMixin(dfBsc):
         :param rtn: default False, return None
         :return: if rtn is True, return self.dts
         """
-        dct_typ = lsz(args)._rg_to_typ(prm='dct', rtn=True)                # args转字典
+        dct_typ = lsz(args).rgs_to_typ(prm='dct', rtn=True)                # args转字典
         lst_flt = [i for i in dct_typ.keys() if dct_typ[i] in [int, 'int', float, 'float']]
         self.ltr_clm_rpc(lst_flt, ['NA', 'N/A', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
         self.dts = self.dts.astype(dct_typ)  # 核心转换
@@ -493,6 +497,14 @@ class clmMixin(dfBsc):
             return self.dts
 
     def cod_clm_int(self, lst_clm, *, spr=False, rtn=False, prm='encode'):
+        """
+        encode or decode int columns with special coding dict.
+        :param lst_clm:
+        :param spr:
+        :param rtn:
+        :param prm: in ['encode','decode'], default 'encode'
+        :return:
+        """
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
         if prm in ['encode', 'ncd']:
             self.ltr_clm_typ(lst_clm, 'str')
@@ -509,6 +521,14 @@ class clmMixin(dfBsc):
             return self.dts
 
     def cod_clm_cvr(self, lst_clm, *, spr=False, rtn=False, prm=None):
+        """
+        encode columns contents with covering by '*'.
+        :param lst_clm:
+        :param spr:
+        :param rtn:
+        :param prm:
+        :return:
+        """
         prm = [1, -1] if prm is None else prm
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
         self.ltr_clm_typ(lst_clm, 'str')
@@ -529,7 +549,7 @@ class clmMixin(dfBsc):
         :param prm:
         :return:
         """
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_old, lst_clm = list(dct_rgs.keys()), list(dct_rgs.values())
         self.ltr_clm_typ(lst_old, 'str')
         for i in range(len(lst_clm)):
@@ -607,7 +627,7 @@ class dcmMixin(dfBsc):
         """
         flt_trs = None if prm in ['keep', 'kep', 'kp'] else prm
         flt_bgn = self.len
-        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if not prm else lst_clm
+        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if prm in ['keep', 'kep', 'kp', None] else lst_clm
         dts_drp = self.dts.dropna(axis=0,           # 0 for index and 1 for columns
                                   how='any',        # any and all
                                   thresh=flt_trs,   # optional Keep only the rows with at least 2 non-NA values
@@ -649,7 +669,7 @@ class dcmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def drp_dcm_ctt(self, *args, spr=False, rtn=False, prm=True):
+    def drp_dcm_ctt(self, *args, spr=False, rtn=False, prm='drop'):
         """
         drop documents for contents.
         >>> tst = dfz([{'A':'a','B':'1'},{'A':'b','B':'2'},{'A':'c','B':'3'},{'A':'d','B':'4'},])
@@ -663,7 +683,7 @@ class dcmMixin(dfBsc):
         :param prm: in [(True,'drop'),(False,'keep'),'partDrop','partKeep'], default True for dropping documents.
         :return: if rtn is True, return self.dts
         """
-        lst_rgs = lsz(args)._rg_to_typ(rtn=True)
+        lst_rgs = lsz(args).rgs_to_typ(rtn=True)
         lst_clm, lst_ctt = lsz(lst_rgs[0], lst=True), lsz(lst_rgs[1], lst=True)
         if lst_clm.len == 1 and type(lst_ctt[0]) not in [list, lsz]:
             lst_ctt = lsz([lst_ctt.seq])            # 当仅检查单列时，需要控制其待识别内容为唯一个列表
@@ -711,7 +731,7 @@ class dcmMixin(dfBsc):
         if 0 in self.clm:
             raise KeyError('a necessary column name 0 has been occupied, column 0 needs to be renamed')
         else:
-            dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+            dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
             str_mpt, str_xpt = list(dct_rgs.keys())[0], list(dct_rgs.values())[0]
             dff = self.dts[str_mpt].str.split(prm, expand=True).stack()  # 分离为series形式
             dff.index = dff.index.codes[0]  # 保证index与self.ndx相符, 旧版本使用 = dff.index.labels[0]
@@ -757,7 +777,7 @@ class dcmMixin(dfBsc):
                 dtf_tmp = dtf_tmp[lst_clm_grp_tmp]
                 dtf_tmp.rename(columns={i_clm: clm_vls}, inplace=True)
                 lst_dtf.append(dtf_tmp)  # 拼接用于for循环结束后的concat环节
-        self.dts = concat(lst_dtf, axis=0).reset_index(drop=False)
+        self.dts = concat(lst_dtf).reset_index()  # concat prm axis=0, reset_index prm drop=False
         if spr:
             self.spr_nit()
         if rtn:
@@ -765,7 +785,9 @@ class dcmMixin(dfBsc):
 
 
 class cllMixin(dcmMixin, clmMixin):
-
+    """
+    methods Mixin for collections.
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(cllMixin, self).__init__(dts, lcn, spr=spr)
 
@@ -779,7 +801,7 @@ class cllMixin(dcmMixin, clmMixin):
         1  2
         >>> tst = dfz([{'A':1,'B':'a'},{'A':2,'B':'b'}])
         >>> tst.typ_to_dtf()
-        >>> tst.mrg_dtf(pd.DataFrame([{'A':2,'C':'x'}]), 'A', prm='outer', rtn=True)
+        >>> tst.mrg_dtf(pd.DataFrame([{'A':2,'C':'x'}]), 'A', rtn=True)
            A  B    C
         0  1  a  NaN
         1  2  b    x
@@ -798,7 +820,7 @@ class cllMixin(dcmMixin, clmMixin):
             lst_dtf.extend([dtf_mrg])
             if args:
                 lst_dtf.extend(lsz(args).typ_to_lst(rtn=True))
-            self.dts = concat(lst_dtf, ignore_index=True, keys=None, axis=0, sort=False)
+            self.dts = concat(lst_dtf, ignore_index=True)  # default keys=None, axis=0, sort=False
         elif prm in ['outer_index', 'ndx']:         # merging by indexes
             self.dts = merge(self.dts, dtf_mrg, how='outer', left_index=True, right_index=True)
         else:
@@ -845,7 +867,9 @@ class cllMixin(dcmMixin, clmMixin):
 
 
 class tmsMixin(cllMixin):
-
+    """
+    methods Mixin for columns on type timeStamp.
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(tmsMixin, self).__init__(dts, lcn, spr=spr)
 
@@ -863,7 +887,7 @@ class tmsMixin(cllMixin):
         :param rtn: default False, return None
         :return: if rtn is True, return self.dts
         """
-        lst_rgs = lsz(args)._rg_to_typ(prm='eql', rtn=True)
+        lst_rgs = lsz(args).rgs_to_typ(prm='eql', rtn=True)
         lst_old, lst_new = lst_rgs[0], lst_rgs[1]
         for i in range(len(lst_old)):
             self.dts[lst_new[i]] = self.dts.apply(lambda x: dtz(x[lst_old[i]]).typ_to_dtt(rtn=True), axis=1)
@@ -943,7 +967,9 @@ class tmsMixin(cllMixin):
 
 
 class pltMixin(cllMixin):
-
+    """
+    methods Mixin for plots and tables.
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(pltMixin, self).__init__(dts, lcn, spr=spr)
 
@@ -966,14 +992,15 @@ class pltMixin(cllMixin):
         """
         if prm:
             self.srt_dcm(prm)
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         lst_clm = list(dct_rgs.keys())
         lst_new = [i+'_pop' for i in dct_rgs.keys()] if len(args) == 1 and type(args[0]) not in [dict] else \
             list(dct_rgs.values())
         for k in range(len(lst_clm)):
             for i in range(1, self.len):
                 if self.dts.loc[i - 1, lst_clm[k]] > 0:
-                    self.dts.loc[i, lst_new[k]] = round((self.dts.loc[i, lst_clm[k]] - self.dts.loc[i - 1, lst_clm[k]]) / self.dts.loc[i - 1, lst_clm[k]], 4)
+                    self.dts.loc[i, lst_new[k]] = round((self.dts.loc[i, lst_clm[k]] - self.dts.loc[i - 1, lst_clm[k]])
+                                                        / self.dts.loc[i - 1, lst_clm[k]], 4)
         self.dts_nit()
         if spr:
             self.spr_nit()
@@ -998,7 +1025,7 @@ class pltMixin(cllMixin):
         :param prm: if drop template columns '_sum_x' or not, default True=drop.
         :return: None
         """
-        dct_rgs = lsz(args)._rg_to_typ(prm='dct', rtn=True)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         dct_grb = dct_rgs.copy()
         for i in dct_grb.keys():
             dct_grb[i] = np_sum
@@ -1018,6 +1045,8 @@ class pltMixin(cllMixin):
 
 
 class dfz(tmsMixin, pltMixin):
-
+    """
+    dataFrame operating class with slots.
+    """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(dfz, self).__init__(dts, lcn, spr=spr)

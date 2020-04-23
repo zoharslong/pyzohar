@@ -5,8 +5,6 @@ Created on Fri Mar 22 16:30:38 2019
 input/output operation.
 @author: zoharslong
 """
-from abc import ABC
-
 from numpy import ndarray as typ_np_ndarray
 from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
@@ -17,16 +15,21 @@ from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, Exce
 from os import path
 from time import sleep
 from os.path import exists
+from fake_useragent import UserAgent
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from telnetlib import Telnet                                            # 本机或代理ip检测的第二种方法
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
+from urllib3.util.retry import MaxRetryError
+from urllib3.response import ProtocolError
+from urllib3.connection import NewConnectionError
+from requests.models import ChunkedEncodingError
+from requests.adapters import ProxyError
 from requests import post, get
 from re import findall as re_find
 from json import loads, JSONDecodeError
 from .bsc import stz, lsz, dcz
-
 
 class ioBsc(pd_DataFrame):
     """
@@ -73,6 +76,11 @@ class ioBsc(pd_DataFrame):
             self.spr_nit()
 
     def spr_nit(self, rtn=False):
+        """
+        super initiation.
+        :param rtn: default False
+        :return:
+        """
         try:
             super(ioBsc, self).__init__(self.__dts)
         except ValueError:
@@ -125,6 +133,10 @@ class ioBsc(pd_DataFrame):
 
     @property
     def lcn(self):
+        """
+        self.location.
+        :return: self.__lcn
+        """
         return self.__lcn
 
     @lcn.setter
@@ -132,7 +144,7 @@ class ioBsc(pd_DataFrame):
         if lcn is None or type(lcn) in self.lst_typ_lcn:
             if self.__lcn is None:
                 self.__lcn = lcn
-            else:
+            elif type(lcn) == dict:
                 for ikey in lcn.keys():
                     self.__lcn[ikey] = lcn[ikey]
             self.__attr_rst('lcn')
@@ -152,6 +164,10 @@ class ioBsc(pd_DataFrame):
         self._myCln = self._myMdb[self.lcn['cln']] if [True if 'cln' in self.lcn.keys() else False] else None
 
     def sql_nit(self):
+        """
+        SQL initiate. needs self.lcn={'sql'={'hst','prt','usr','psw'},'sdb','tbl'}
+        :return: None
+        """
         if 'sql' not in self.lcn.keys():
             self.lcn['sql'] = None
         self.lcn['sql'] = {'hst': '172.16.0.13', 'prt': 3306, 'usr': None, 'psw': None} if \
@@ -161,10 +177,14 @@ class ioBsc(pd_DataFrame):
         self._myTbl = self.lcn['tbl'] if [True if 'tbl' in self.lcn.keys() else False] else None
 
     def api_nit(self):
+        """
+        API initiate. needs self.lcn={'url'/'url_lst'/'url_ctt','pst','hdr','prx','prm'}
+        :return:
+        """
         if 'pst' not in self.lcn.keys():
             self.lcn['pst'] = None      # post请求中在请求data中发送的参数数据
         if 'hdr' not in self.lcn.keys():
-            self.lcn['hdr'] = None      # 请求头
+            self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 若未指定请求头就现编一个简直可怕
         if 'prx' not in self.lcn.keys():
             self.lcn['prx'] = None      # 是否调用代理
         if 'prm' not in self.lcn.keys():
@@ -242,7 +262,14 @@ class ioBsc(pd_DataFrame):
                 self.api_nit()
 
     def typ_to_dtf(self, clm=None, *, spr=False, rtn=False):
-        if self.len == 0 or not self.dts:
+        """
+        self.dts's type from others to dataFrame.
+        :param clm: define the columns' name in the final dataFrame
+        :param spr: super or not, default False
+        :param rtn: return or not, default False
+        :return: None if not rtn
+        """
+        if self.len == 0 or self.dts in [None, [], [{}]]:
             self.dts = pd_DataFrame()
         elif self.typ in [dict, dcz]:
             self.dts = pd_DataFrame([self.dts])
@@ -294,6 +321,15 @@ class lclMixin(ioBsc):
         super(lclMixin, self).__init__(dts, lcn, spr=spr)
 
     def mpt_csv(self, fld=None, fls=None, sep=None, *, spr=False, rtn=False):
+        """
+        import csv from folds into RAM.
+        :param fld:
+        :param fls:
+        :param sep:
+        :param spr:
+        :param rtn:
+        :return:
+        """
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
         sep = ',' if sep is None else sep
@@ -304,6 +340,16 @@ class lclMixin(ioBsc):
             return self.dts
 
     def mpt_xcl(self, fld=None, fls=None, hdr=None, sht=None, *, spr=False, rtn=False):
+        """
+        import excel data from folds into RAM
+        :param fld:
+        :param fls:
+        :param hdr:
+        :param sht:
+        :param spr:
+        :param rtn:
+        :return:
+        """
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
         hdr = 0 if hdr is None else hdr
@@ -315,9 +361,32 @@ class lclMixin(ioBsc):
             return self.dts
 
     def mpt_txt(self, fld=None, fls=None, *, spr=False, rtn=False):
+        """
+        import txt from folds into RAM
+        :param fld:
+        :param fls:
+        :param spr:
+        :param rtn:
+        :return:
+        """
+        # fld = self.lcn['fld'] if fld is None else fld
+        # fls = self.lcn['fls'] if fls is None else fls
+        # if spr:
+        #     self.spr_nit()
+        # if rtn:
+        #     return self.dts
         pass
 
     def lcl_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
+        """
+        local files importation.
+        :param sep:
+        :param hdr:
+        :param sht:
+        :param spr:
+        :param rtn:
+        :return:
+        """
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
             self.lcn = {'fls': [self.lcn['fls']]}
         dtf_mrg = pd_DataFrame() if not self.dts else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
@@ -327,8 +396,8 @@ class lclMixin(ioBsc):
             elif i_fls.rsplit('.')[1] in ['xls', 'xlsx']:
                 self.mpt_xcl(fls=i_fls, hdr=hdr, sht=sht)
             elif i_fls.rsplit('.')[1] in ['txt']:
-                pass
-            dtf_mrg = concat([dtf_mrg, self.dts], ignore_index=True, sort=False)    # 忽视index的多文件纵向拼接
+                self.mpt_txt(fls=i_fls)
+            dtf_mrg = concat([dtf_mrg, self.dts], ignore_index=True)    # 忽视index的多文件纵向拼接, prm: sort=False
         self.dts = dtf_mrg
         if spr:
             self.spr_nit()
@@ -571,8 +640,6 @@ class mngMixin(ioBsc):
         根据库是否存在, 进行有选择性的导入策略,全部导入或更新导入
         :param lst_ndx: 为新建的集合创建唯一索引组
         :param cvr: 覆盖或是舍弃, default cover, True
-        :param dtz_nit: 初始化的窗口起点
-        :param dtz_bgn: 本次操作所选择的时间窗起点，当此起点与初始化窗口起点相同时，采取创建策略
         :return: None
         """
         print('*****', self._myMdb.name, '.', self._myCln.name, '*****')
@@ -588,10 +655,10 @@ class mngMixin(ioBsc):
 class sqlMixin(ioBsc):
     """
     mysql tables input and output operations.
-    >>> tst = ioz(lcn={'sql':{'hst':"cdb-cwlc1vtt.gz.tencentcdb.com", 'prt':10109,'usr':'**','psw':'sl********'},
+    >>> tst = ioz(lcn={'sql':{'hst':"cdb-********.gz.tencentcdb.com", 'prt':1***9,'usr':'**','psw':'**********'},
     >>>                'sdb':'db_spd_dly',
     >>>                'tbl':'tb_spd_est_shd_ljw_190409',})
-    >>> tst.sql_run("SELECT table_name FROM information_schema.tables WHERE table_schema=%s",tst._mySdb)    # 查看表名
+    >>> tst.sql_run("SELECT table_name FROM information_schema.tables WHERE table_schema=%s", tst.lcn['sdb'])  # 查看表名
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(sqlMixin, self).__init__(dts, lcn, spr=spr)
@@ -607,7 +674,8 @@ class sqlMixin(ioBsc):
         # insert
         sql_nst = 'insert into %s(%s) values(%s)'%('tb_spd_bdu_adv_kwd','estatename, ndx','"云", "5"')
         # update
-        sql_pdt = 'update %s set %s = %s where %s = %s' %('tb_spd_bdu_adv_kwd','estatename','"桑泰龙樾"','estatename','"桑泰龙樾"')
+        sql_pdt = 'update %s set %s = %s where %s = %s' %(
+            'tb_spd_bdu_adv_kwd','estatename','"桑泰龙樾"','estatename','"桑泰龙樾"')
         # delete
         sql_dlt = 'delete from %s where %s=%s'%('tb_spd_bdu_adv_kwd','estatename','"云"')
         # select
@@ -652,10 +720,12 @@ class sqlMixin(ioBsc):
 class apiMixin(ioBsc):
     """
     local files input and output operations.
-    >>> self = ioz(lcn={'mdb':'db_tst','cln':'cl_cld',
+    >>> self = ioz(lcn={
+    >>>     'mdb':'db_tst','cln':'cl_cld',
     >>>     'url':"http://haixfsz.centaline.com.cn/service/postda",
-    >>>     'pst':{'uid':'haixf**', 'pwd':'SZ.***$', 'key':'requestCCESdeallog',
-    >>>     'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'}})
+    >>>     'pst':{'uid':'haixf**', 'pwd':'**.***$', 'key':'requestCCESdeallog',
+    >>>            'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'}
+    >>> })
     >>> self.api_run()  # 从api导入数据
     >>> self.mng_xpt()  # 将api数据导出到mongodb
     """
@@ -695,15 +765,16 @@ class apiMixin(ioBsc):
         htp = 'http' if dct_jgw['prm']['port'] == '1' else 'https'
         rtn, ipp_prx, bch = False, None, 0
         while not rtn and bch <= 3:
-            mdl_prx = get(dct_jgw['url'], params=dct_jgw['prm'], timeout=30)
+            mdl_prx = get(dct_jgw['url'], params=dct_jgw['prm'], timeout=180)
             mdl_prx.encoding = "utf-8"
             dct_prx = loads(mdl_prx.text)
             try:                    # 尝试拼接标准格式的proxy
                 ipp_prx = htp + '://' + str(dct_prx['data'][0]['ip']) + ':' + str(dct_prx['data'][0]['port'])
                 rtn = True
-            except IndexError:      # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
+                print('info: proxy shifted to %s.' % ipp_prx)
+            except (IndexError, KeyError):      # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
                 # {"code":113,"data":[],"msg":"请添加白名单xxx.xx.xxx.xxx","success":false}
-                if dct_prx['msg'] in [113, '113']:
+                if dct_prx['code'] in [113, '113']:
                     wht = re_find('请添加白名单(.*$)', dct_prx['msg'])[0]
                     url_wht = 'http://webapi.jghttp.golangapi.com/index/index/save_white'
                     dct_wht = {
@@ -730,7 +801,6 @@ class apiMixin(ioBsc):
         返回本机当次的ip地址（若self.lcn.prx存在则返回该代理的ip地址）. get local ip from API.
         from https://blog.csdn.net/weixin_44285988/article/details/102837864
         from https://www.cnblogs.com/hankleo/p/11771682.html
-        >>> from telnetlib import Telnet
         >>> Telnet('116.22.50.144', '4526', timeout=2)
         <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
         :param url: 用于返回本次使用的本机或代理ip的API地址
@@ -738,13 +808,16 @@ class apiMixin(ioBsc):
         """
         if self.lcn['prx'] in ['auto']:
             raise AttributeError('stop: self.lcn.prx is auto, proxy does not available yet. run api_prx before this.')
-        mdl_rqt = get(url, proxies=self.lcn['prx'], timeout=30)
-        if mdl_rqt.status_code == 200:
-            return mdl_rqt.text.replace('\n', '')
-        elif mdl_rqt.status_code == 502:
-            return 'stop: 502 - connection timed out.'
-        else:
-            return mdl_rqt
+        try:
+            mdl_rqt = get(url, proxies=self.lcn['prx'], timeout=180)
+            if mdl_rqt.status_code == 200:
+                return mdl_rqt.text.replace('\n', '')
+            elif mdl_rqt.status_code == 502:
+                return 'stop: 502 - connection timed out.'
+            else:
+                return mdl_rqt
+        except (MaxRetryError, NewConnectionError, ConnectionResetError, ProxyError):
+            return 'stop: MaxRetryError/NewConnectionError.'
 
     def _pi_prx_chk(self):
         """
@@ -753,12 +826,20 @@ class apiMixin(ioBsc):
         """
         if self.lcn['prx'] in [None, 'auto']:
             return False
-        elif re_find(self._pi_ipl(), self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
-            return True     # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
+        # elif re_find(self._pi_ipl(), self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
+        #     return True     # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
         else:
-            return False
+            try:
+                if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+                          re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+                          timeout=30):  # 使用telnet验证代理效果
+                    return True
+                else:
+                    return False
+            except TimeoutError:
+                return False
 
-    def api_prx(self, frc=False, prm='http'):
+    def api_prx(self, prm='http', frc=False):
         """
         当self.lcn.prx代理不为空, 即采用代理时, 调用代理是否有效的检查，若无效则更新代理, 更新五次失败则报错
         :param frc: forced refresh, default False means not refresh if ip test is passed
@@ -775,7 +856,7 @@ class apiMixin(ioBsc):
                 if bch == 3:
                     raise AttributeError('stop: max retry, cannot pass proxy test for 3 times.')
 
-    def api_run(self, *, spr=False, rtn=False, prm='post', frc=True):
+    def api_run(self, *, spr=False, rtn=False, prm='post', frc=False):
         """
         兼容POST/GET两种方法的调用
         from https://www.cnblogs.com/roadwide/p/10804888.html
@@ -786,38 +867,41 @@ class apiMixin(ioBsc):
         :return:
         """
         # 针对post请求, 注意self.lcn.pst参数
-        self.api_prx()              # 初始化更新proxy, 仅用于处理prx='auto'的情况
+        self.api_prx(frc=frc)       # 初始化更新proxy, 仅用于处理prx='auto'的情况
         prc, bch, mdl_rqt = True, 0, None
-        while prc and bch <= 3:     # 满足本次请求的返回statusCode为200即请求成功, 或循环五次失败
-            # 针对POST请求, 注意self.lcn.prm参数
-            if prm in ['post']:
-                mdl_rqt = post(self.lcn['url'],
-                               params=self.lcn['prm'], data=self.lcn['pst'],
-                               headers=self.lcn['hdr'], proxies=self.lcn['prx'],
-                               timeout=300)
-            # 针对GET请求, 注意self.lcn.prm参数
-            elif prm in ['get']:
-                mdl_rqt = get(self.lcn['url'],
-                              params=self.lcn['prm'], data=self.lcn['pst'],
-                              headers=self.lcn['hdr'], proxies=self.lcn['prx'],
-                              timeout=300)
-            else:
-                raise AttrbuteError('stop: api_run.prm needs ["post", "get"] for [requests.post, requests.get].')
-            mdl_rqt.encoding = "utf-8"
-            if mdl_rqt.status_code == 200:
-                prc = False             # 当本次POST/GET请求获得200返回码时, 进入结果装载环节
-            else:
-                self.api_prx(frc=frc)   # 当本次POST/GET请求未能得到200时, 代理强制更新
+        while prc and bch <= 3:     # 满足本次请求的返回statusCode为200即请求成功, 或循环3次失败
+            try:
+                # 针对POST请求, 注意self.lcn.pst参数
+                if prm in ['post']:
+                    mdl_rqt = post(self.lcn['url'],
+                                   params=self.lcn['prm'], data=self.lcn['pst'],
+                                   headers=self.lcn['hdr'], proxies=self.lcn['prx'],
+                                   timeout=300)
+                # 针对GET请求, 注意self.lcn.prm参数
+                elif prm in ['get']:
+                    mdl_rqt = get(self.lcn['url'],
+                                  params=self.lcn['prm'], data=self.lcn['pst'],
+                                  headers=self.lcn['hdr'], proxies=self.lcn['prx'],
+                                  timeout=300)
+                else:
+                    raise AttributeError('stop: api_run.prm needs ["post", "get"] for [requests.post, requests.get].')
+                mdl_rqt.encoding = "utf-8"
+                if mdl_rqt.status_code in [200]:
+                    prc = False             # 当本次POST/GET请求获得200返回码时, 进入结果装载环节
+                elif mdl_rqt.status_code in [500] and self.lcn['prx'] in [None]:
+                    prc = False
+                else:
+                    self.api_prx(frc=frc)   # 当本次POST/GET请求未能得到200时, 代理强制更新
+            except (ProtocolError, ChunkedEncodingError):   # proxy ip timeout, change proxy
+                self.api_prx(frc=frc)
             bch += 1
             if bch == 3:
-                raise TimeoutError('stop: max batches.')
+                print('info: max batches.')
         # 请求阶段结束, 进入API结果的装载阶段
         try:
-            self.dts = loads(mdl_rqt.text)
+            self.dts = loads(mdl_rqt.text)      # 优先尝试js解码
         except JSONDecodeError:
-            self.dts = mdl_rqt.text
-        except ValueError:
-            print('stop: something wrong with <%s>.' % mdl_rqt.text[0:100])
+            self.dts = mdl_rqt.text             # 若js解码失败则直接装入self.dts
         if spr:
             self.spr_nit()
         if rtn:
@@ -845,6 +929,15 @@ class apiMixin(ioBsc):
                     raise KeyError('%s do not exist' % i)
 
     def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False):
+        """
+        import data from API in json decoding.
+        :param lst_kys:
+        :param spr:
+        :param rtn:
+        :param prm:
+        :param frc: shift proxy ip forced
+        :return:
+        """
         self.api_run(prm=prm, frc=frc)
         self.get_vls(lst_kys)
         if spr:
@@ -855,6 +948,7 @@ class apiMixin(ioBsc):
 
 class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):
     """
+    input/output class on multiple methods.
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(ioz, self).__init__(dts, lcn, spr=spr)
