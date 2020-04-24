@@ -862,8 +862,8 @@ class apiMixin(ioBsc):
         from https://www.cnblogs.com/roadwide/p/10804888.html
         :param spr:
         :param rtn:
-        :param prm:
-        :param frc:
+        :param prm: in ['post', 'get'], the methods of requests
+        :param frc: force change proxy or not
         :return:
         """
         # 针对post请求, 注意self.lcn.pst参数
@@ -871,37 +871,31 @@ class apiMixin(ioBsc):
         prc, bch, mdl_rqt = True, 0, None
         while prc and bch <= 3:     # 满足本次请求的返回statusCode为200即请求成功, 或循环3次失败
             try:
-                # 针对POST请求, 注意self.lcn.pst参数
-                if prm in ['post']:
-                    mdl_rqt = post(self.lcn['url'],
-                                   params=self.lcn['prm'], data=self.lcn['pst'],
-                                   headers=self.lcn['hdr'], proxies=self.lcn['prx'],
-                                   timeout=300)
-                # 针对GET请求, 注意self.lcn.prm参数
-                elif prm in ['get']:
-                    mdl_rqt = get(self.lcn['url'],
-                                  params=self.lcn['prm'], data=self.lcn['pst'],
-                                  headers=self.lcn['hdr'], proxies=self.lcn['prx'],
-                                  timeout=300)
-                else:
-                    raise AttributeError('stop: api_run.prm needs ["post", "get"] for [requests.post, requests.get].')
+                mdl_rqt = post(
+                    self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
+                    headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
+                ) if prm.lower() in ['post', 'pst'] else get(
+                    self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
+                    headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
+                )                   # 针对POST/GET请求, 分别注意self.lcn.pst/self.lcn/prm参数
                 mdl_rqt.encoding = "utf-8"
-                if mdl_rqt.status_code in [200]:
+                if self.lcn['prx'] in [None]:
+                    prc = False             # 当不使用代理时, 不进行循环
+                elif mdl_rqt.status_code in [200]:
                     prc = False             # 当本次POST/GET请求获得200返回码时, 进入结果装载环节
-                elif mdl_rqt.status_code in [500] and self.lcn['prx'] in [None]:
-                    prc = False
                 else:
-                    self.api_prx(frc=frc)   # 当本次POST/GET请求未能得到200时, 代理强制更新
+                    self.api_prx(frc=frc)   # 其他情况酌情更新代理
             except (ProtocolError, ChunkedEncodingError):   # proxy ip timeout, change proxy
                 self.api_prx(frc=frc)
-            bch += 1
-            if bch == 3:
-                print('info: max batches.')
-        # 请求阶段结束, 进入API结果的装载阶段
-        try:
+            finally:
+                bch += 1
+                if bch == 3:
+                    self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
+                    print('info: max batches, proxy forces switch.')
+        try:                                    # 请求阶段结束, 进入API结果的装载阶段
             self.dts = loads(mdl_rqt.text)      # 优先尝试js解码
         except JSONDecodeError:
-            self.dts = mdl_rqt.text             # 若js解码失败则直接装入self.dts
+            self.dts = mdl_rqt.text             # 若js解码失败则直接装载self.dts
         if spr:
             self.spr_nit()
         if rtn:

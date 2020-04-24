@@ -59,7 +59,7 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def drp_clm(self, lst_clm, *, spr=False, rtn=False):
+    def drp_clm(self, lst_clm, *, spr=False, rtn=False, prn=True):
         """
         drop columns.
         >>> from pandas import DataFrame
@@ -70,10 +70,15 @@ class clmMixin(dfBsc):
         :param lst_clm: a list of columns to drop
         :param spr: let self = self.dts
         :param rtn: default False, return None
+        :param prn: print info or not
         :return: if rtn is True, return self.dts
         """
-        lst_clm = lsz(lst_clm).typ_to_lst(rtn=True)
+        lst_clm = lsz(lst_clm)
+        lst_clm.typ_to_lst(rtn=True)
+        lst_clm = lst_clm.mrg('inter', list(self.clm), rtn=True)
         self.dts = self.dts.drop(lst_clm, axis=1)
+        if prn:
+            print('info: found columns %s in target dataFrame, dropping.' % str(lst_clm))
         if spr:
             self.spr_nit()
         if rtn:
@@ -659,9 +664,10 @@ class dcmMixin(dfBsc):
             lst_srt = lsz(args[1]).typ_to_lst(rtn=True)
             self.srt_dcm(lst_srt, scd)
         len_bfr = self.len
-        self.dts = self.dts.drop_duplicates(subset=lst_dpl, keep=prm)
-        if prm.lower in ['keep']:
+        if prm.lower() in ['keep', 'kep']:
             self.drp_dcm(list(self.dts.drop_duplicates(subset=lst_dpl, keep=False).index))
+        else:
+            self.dts = self.dts.drop_duplicates(subset=lst_dpl, keep=prm)
         if prn:
             print("info: drop duplicate documents, %.i in total %.i left, from <%s>." % (len_bfr, self.len, self))
         if spr:
