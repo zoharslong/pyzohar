@@ -12,7 +12,7 @@ from bson.objectid import ObjectId as typ_ObjectId  # _id from mongobd
 from calendar import monthrange     # how many days in any month
 from re import search as re_search, sub as re_sub, match as re_match
 from math import isnan as math_isnan
-from collections import Iterable
+from collections.abc import Iterable
 from random import randint
 from hashlib import md5 as hsh_md5
 from numpy import array as np_array, ndarray as typ_np_ndarray
@@ -70,7 +70,7 @@ class stz(str):
     '15814079977'
     >>> stz('15814079977').ncd_md5(rtn=True)
     'f8ceb85867e2df236e11211366be6479'
-    >>> stz('15814079977').ncd_cvr([3,7])
+    >>> stz('15814079977').ncd_cvr([3,7], rtn=True)
     '158****9977'
     """
     def __init__(self, val=''):
@@ -224,6 +224,7 @@ class lsz(list):
         typ_pd_Series,
         typ_pd_Index,
         typ_pd_RangeIndex,
+        type(None)
     ]   # lsz.seq's type
 
     def __init__(self, seq=None, spr=True, lst=False):
@@ -281,7 +282,7 @@ class lsz(list):
         :param seq: a sequence to import.
         :return: None
         """
-        if seq is None or type(seq) in self.lst_typ_lsz:
+        if type(seq) in self.lst_typ_lsz:
             self.__seq = seq
             self.__attr_rst()
         else:
@@ -467,6 +468,8 @@ class lsz(list):
         check dataframe's columns' dtype.
         >>> lsz(['O']).chk_dtf_dtp(pd_DataFrame([{"A":1,"B":"a"},{"A":2,"B":"b"}]),rtn=True)
         ['B']
+        >>> lsz().chk_dtf_dtp(pd_DataFrame([{"A":1,"B":"a"},{"A":2,"B":"b"}]), prm='O',rtn=True)
+        ['B']
         :param dtf_chk: the target dataframe to be listing
         :param spr: let lsz = lsz.seq or not, default False
         :param rtn: return the result or not, default False
@@ -575,6 +578,7 @@ class dcz(dict):
         typ_pd_Series,
         typ_pd_Index,
         typ_pd_RangeIndex,
+        type(None)
     ]   # lsz.seq's type
 
     def __init__(self, seq=None, spr=True):
@@ -628,7 +632,7 @@ class dcz(dict):
         :param seq: a sequence to import.
         :return: None
         """
-        if seq is None or type(seq) in self.lst_typ_dcz:
+        if type(seq) in self.lst_typ_dcz:
             self.__seq = seq
             self.__attr_rst()
         else:
@@ -722,7 +726,8 @@ class dtz(object):
         typ_dt_time,
         typ_pd_Timestamp,
         typ_tm_structtime,
-        typ_ObjectId
+        typ_ObjectId,
+        type(None)
     ]   # dtz.val's type
 
     def __init__(self, val=None, prm=None):
@@ -761,7 +766,7 @@ class dtz(object):
         :param val: a value to import.
         :return: None
         """
-        if val is None or type(val) in self.lst_typ_dtz:
+        if type(val) in self.lst_typ_dtz:
             self.__val = val
             self.__attr_rst()
         else:
@@ -797,7 +802,7 @@ class dtz(object):
         """
         if self.typ in [dt_datetime]:
             pass
-        elif self.val is None or self.typ in [pd_NaT]:
+        elif self.typ in [pd_NaT, type(None)]:
             self.val = None
         elif self.typ in [typ_dt_date]:
             self.val = dt_datetime.combine(self.val, typ_dt_time())
@@ -879,6 +884,12 @@ class dtz(object):
     def dtt_to_prd(self, str_kwd='w', rtn=False):
         """
         alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m'].
+        >>> dtt = dtz('now')
+        >>> dtt.dtt_to_prd('W',rtn=True)
+        '2020w17'
+        >>> dtt = dtz('now')
+        >>> dtt.dtt_to_prd('w',rtn=True)
+        '20w17'
         :param str_kwd: in ['W','w','M','m'] for ['%Yw%w','%yw%w','%Ym%m','%ym%m']
         :param rtn: return or not
         :return: result in format ['%Ym%m','%Yw%w']
@@ -891,7 +902,7 @@ class dtz(object):
             slf_dmh = self.val.timetuple().tm_mon                   # 得到month
             int_kyr = slf_dwk[0] if str_kwd.lower() == 'w' else slf_dyr     # 根据str_kwd判断标志年
             int_kwd = slf_dwk[1] if str_kwd.lower() == 'w' else slf_dmh     # 根据str_kwd判断标志字符
-            str_kyr = str(int_kyr)[2:] if str_kwd.islower else str(int_kyr)
+            str_kyr = str(int_kyr)[2:] if str_kwd.islower() else str(int_kyr)
             self.val = "%s%s%s" % (str_kyr, str_kwd.lower(), str(int_kwd).zfill(2))
         else:
             print('info: None cannot convert to "%y[wm]%d" format.')
@@ -901,6 +912,12 @@ class dtz(object):
     def dwk_to_dtt(self, flt_dlt=1, rtn=False):
         """
         alter string in format '19w01' to a certain datetime in this period.
+        >>> dtt = dtz('2020w17')
+        >>> dtt.dwk_to_dtt(1, rtn=True)
+        datetime.datetime(2020, 4, 20, 0, 0)
+        >>> dtt = dtz('2020w17')
+        >>> dtt.dwk_to_dtt(-1, rtn=True)
+        datetime.datetime(2020, 4, 26, 23, 59, 59)
         :param flt_dlt: in range(1,7) for '%Yw%w', range(-7,-1) also equals to range(1,7)
         :param rtn: return the result or not
         :return: if rtn is True, return
@@ -926,6 +943,12 @@ class dtz(object):
     def dmh_to_dtt(self, flt_dlt=1, rtn=False):
         """
         alter string in format '19m01' to a certain datetime in this period.
+        >>> dtt = dtz('19m02')
+        >>> dtt.dmh_to_dtt(1,rtn=True)
+        datetime.datetime(2019, 2, 1, 0, 0)         # 返回第一天的第一秒
+        >>> dtt = dtz('19m02')
+        >>> dtt.dmh_to_dtt(-1,rtn=True)
+        datetime.datetime(2019, 2, 28, 23, 59, 59)  # 返回最后一天的最后一秒
         :param flt_dlt: in range(1,28/31) for '%Ym%m', range(-31/-28,-1) also equals to range(1,28/31)
         :param rtn: return the result or not
         :return: if rtn is True, return
@@ -952,6 +975,12 @@ class dtz(object):
     def prd_to_dtt(self, flt_dlt=1, rtn=False):
         """
         alter period string in format ['%[Yy]w%w','%[Yy]m%m'] to datetime.datetime type.
+        >>> dtt = dtz('19m02')
+        >>> dtt.prd_to_dtt(1,rtn=True)
+        datetime.datetime(2019, 2, 1, 0, 0)         # 返回第一天的第一秒
+        >>> dtt = dtz('19m02')
+        >>> dtt.prd_to_dtt(-1,rtn=True)
+        datetime.datetime(2019, 2, 28, 23, 59, 59)  # 返回最后一天的最后一秒
         :param flt_dlt: which day in the period to export, in range(1,7) for week and range(1,28-31) for month
         :param rtn: return the result or not
         :return: if rtn is True, return
@@ -1028,3 +1057,6 @@ class dtz(object):
                     (lst_dtt[0]+typ_dt_timedelta(days=i)).date() != lst_dtt[1].date()]
         if rtn:
             return self.val
+
+
+print('info: basic classes imported.')

@@ -10,8 +10,8 @@ from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
-from .bsc import stz, lsz, dtz
-from .ioz import ioz
+from bsc import stz, lsz, dtz
+from ioz import ioz
 
 
 class dfBsc(ioz):
@@ -1056,3 +1056,6 @@ class dfz(tmsMixin, pltMixin):
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(dfz, self).__init__(dts, lcn, spr=spr)
+
+
+print('info: class on dataFrame imported.')

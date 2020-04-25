@@ -12,12 +12,11 @@ from pandas.core.indexes.base import Index as typ_pd_Index              # 定义
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
 from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGroupBy     # 定义dataframe.groupby类型
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
-from os import path
 from time import sleep
-from os.path import exists
+from os.path import exists, join as os_join
 from fake_useragent import UserAgent
 # from socket import getfqdn, gethostname                               # 获得本机IP
-from telnetlib import Telnet                                            # 本机或代理ip检测的第二种方法
+from telnetlib import Telnet                                            # 代理ip有效性检测的第二种方法
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
@@ -29,12 +28,13 @@ from requests.adapters import ProxyError
 from requests import post, get
 from re import findall as re_find
 from json import loads, JSONDecodeError
-from .bsc import stz, lsz, dcz
+from bsc import stz, lsz, dcz
+
 
 class ioBsc(pd_DataFrame):
     """
     I/O basic
-    ioBsc.lcn in format {'fld','fls','mng','mdb','cln','sql','sdb','tbl','url','pst','hdr'}
+    ioBsc.lcn in {'fld','fls','mng','mdb','cln','sql','sdb','tbl','url'/'url_lst'/'url_ctt','prx','pst','prm','hdr'}
     """
     lst_typ_dts = [
         str,
@@ -50,8 +50,9 @@ class ioBsc(pd_DataFrame):
         typ_pd_Index,
         typ_pd_RangeIndex,
         typ_pd_DataFrameGroupBy,
+        type(None)
     ]   # data sets' type
-    lst_typ_lcn = [list, lsz, dict, dcz]   # io methods' type
+    lst_typ_lcn = [list, lsz, dict, dcz, type(None)]   # io methods' type
 
     def __init__(self, dts=None, lcn=None, *, spr=False):
         # all the i/o operations have the same attributes for locate target data: location and collection
@@ -93,7 +94,8 @@ class ioBsc(pd_DataFrame):
         print(io path).
         :return: None
         """
-        return '<io: %s; ds: %s>' % (str(self.lcn)[1:-1], self.typ)
+        dct_prn = {i: self.lcn[i] for i in self.lcn.keys() if i in ['fls', 'cln', 'tbl', 'url']}
+        return '<io: %s; ds: %s>' % (str(dct_prn), self.typ)
     __repr__ = __str__  # 调用类名的输出与print(className)相同
 
     @property
@@ -141,12 +143,18 @@ class ioBsc(pd_DataFrame):
 
     @lcn.setter
     def lcn(self, lcn):
-        if lcn is None or type(lcn) in self.lst_typ_lcn:
-            if self.__lcn is None:
+        """
+        set self.__lcn in self.lcn.
+        :param lcn: a dict of params for self
+        :return: None
+        """
+        if type(lcn) in self.lst_typ_lcn:
+            if self.__lcn is None:      # 当self.__lcn为空时, 直接对self__lcn进行赋值
                 self.__lcn = lcn
-            elif type(lcn) == dict:
-                for ikey in lcn.keys():
-                    self.__lcn[ikey] = lcn[ikey]
+            elif type(lcn) in [dict]:   # 当self.__lcn中已有值时, 使用lcn对其进行更新
+                self.__lcn.update(lcn)  # 使用update更新self.__lcn, 要求self.__lcn必为dict类型
+                # for ikey in lcn.keys():
+                #     self.__lcn[ikey] = lcn[ikey]
             self.__attr_rst('lcn')
         else:
             raise TypeError('info: lcn\'s type %s is not available.' % type(lcn))
@@ -333,7 +341,7 @@ class lclMixin(ioBsc):
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
         sep = ',' if sep is None else sep
-        self.dts = read_csv(path.join(fld, fls), sep=sep)
+        self.dts = read_csv(os_join(fld, fls), sep=sep)
         if spr:
             self.spr_nit()
         if rtn:
@@ -354,7 +362,7 @@ class lclMixin(ioBsc):
         fls = self.lcn['fls'] if fls is None else fls
         hdr = 0 if hdr is None else hdr
         sht = 0 if sht is None else sht
-        self.dts = read_excel(path.join(fld, fls), header=hdr, sheet_name=sht)
+        self.dts = read_excel(os_join(fld, fls), header=hdr, sheet_name=sht)
         if spr:
             self.spr_nit()
         if rtn:
@@ -412,7 +420,7 @@ class lclMixin(ioBsc):
         :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
         :return: None
         """
-        if exists(path.join(self.lcn['fld'], self.lcn['fls'])) and cvr is False:
+        if exists(os_join(self.lcn['fld'], self.lcn['fls'])) and cvr is False:
             print("stop: the txt %s already exists." % str(self.lcn.values()))
         elif type(self.dts) not in [list, typ_pd_DataFrame]:
             print('stop: type of dts_npt needs [list, pd.DataFrame].')
@@ -421,7 +429,7 @@ class lclMixin(ioBsc):
                 lst_dts_mpt = [str(i_dcm) for i_dcm in self.dts]
             else:  # alter the type of a line in dataframe from slice to str
                 lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self.dts.to_dict(orient='split')['data']]
-            prc_txt_writer = open(path.join(self.lcn['fld'], self.lcn['fls']), typ, encoding='utf-8')
+            prc_txt_writer = open(os_join(self.lcn['fld'], self.lcn['fls']), typ, encoding='utf-8')
             for i in range(len(self.dts)):
                 prc_txt_writer.writelines(lst_dts_mpt[i])
                 prc_txt_writer.write('\n')
@@ -439,14 +447,14 @@ class lclMixin(ioBsc):
         :return: None
         """
         if self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
-            self.dts.to_excel(path.join(self.lcn['fld'], self.lcn['fls']), index=ndx)
+            self.dts.to_excel(os_join(self.lcn['fld'], self.lcn['fls']), index=ndx)
         elif self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
-            writer = ExcelWriter(path.join(self.lcn['fld'], self.lcn['fls']))
+            writer = ExcelWriter(os_join(self.lcn['fld'], self.lcn['fls']))
             self.dts.to_excel(writer, sheet_name=prm, index=ndx)
             writer.save()
             writer.close()
         elif self.lcn['fls'].rsplit('.')[1] in ['csv']:
-            self.dts.to_csv(path.join(self.lcn['fld'], self.lcn['fls']), encoding='UTF-8_sig')    # 不明原因的解码方式
+            self.dts.to_csv(os_join(self.lcn['fld'], self.lcn['fls']), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif self.lcn['fls'].rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
         else:
@@ -785,7 +793,7 @@ class apiMixin(ioBsc):
                     get(url_wht, params=dct_wht)
                     sleep(3)        # 添加白名单的操作后需要等待2秒
                 # {"code":111,"data":[],"msg":"请2秒后再试","success":false}
-                elif re_find('请(\d+)秒后再试', dct_prx['msg']):
+                elif dct_prx['code'] in [111, '111']:
                     sleep(int(re_find('请(\d+)秒后再试', dct_prx['msg'])[0])+1)
                 else:               # 当API异常并不是由于白名单问题造成时报错
                     raise KeyError('stop: something wrong with the result <%s>.' % str(mdl_prx.text))
