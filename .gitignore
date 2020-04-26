@@ -9,6 +9,7 @@ Desktop.ini
 *.egg
 *.egg-info
 dist
+idea
 build
 __pycache__
 
