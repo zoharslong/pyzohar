@@ -28,7 +28,7 @@ from requests.adapters import ProxyError
 from requests import post, get
 from re import findall as re_find
 from json import loads, JSONDecodeError
-from .bsc import stz, lsz, dcz
+from .bsz import stz, lsz, dcz
 
 
 class ioBsc(pd_DataFrame):
