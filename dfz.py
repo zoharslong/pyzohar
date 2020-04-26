@@ -10,8 +10,8 @@ from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
-from bsc import stz, lsz, dtz
-from ioz import ioz
+from .bsc import stz, lsz, dtz
+from .ioz import ioz
 
 
 class dfBsc(ioz):
@@ -205,8 +205,8 @@ class clmMixin(dfBsc):
         :param prm: a list of regex to be found in old columns
         :return: if rtn is True, return self.dts
         """
-        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
-        lst_clm, lst_new = list(dct_rgs.keys()), list(dct_rgs.values())
+        lst_rgs = lsz(args).rgs_to_typ(prm='eql', rtn=True)
+        lst_clm, lst_new = lsz(lst_rgs[0]).typ_to_lst(rtn=True), lsz(lst_rgs[1]).typ_to_lst(rtn=True)
         prm = lsz(prm)
         prm.typ_to_lst()
         prm.cpy_tal(len(lst_clm), spr=True)

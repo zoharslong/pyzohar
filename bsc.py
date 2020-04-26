@@ -497,9 +497,9 @@ class lsz(list):
         [['a'], ['b']]
         >>> lsz((['a','b'],'x')).rgs_to_typ(prm='dct', rtn=True)
         {'a': 'x', 'b': 'x'}
-        >>> lsz((['a','c'],'b')).rgs_to_typ(prm='list',rtn=True)
+        >>> lsz((['a','c'],'b')).rgs_to_typ(prm='equal',rtn=True)
         [['a', 'c'], ['b', 'b']]
-        >>> lsz(('a',['b','c'])).rgs_to_typ(prm='list',rtn=True)
+        >>> lsz(('a',['b','c'])).rgs_to_typ(prm='eql',rtn=True)
         [['a', 'a'], ['b', 'c']]
         :param prm: in ['equal', 'eql', 'dict', 'dct']
         :param spr: super self.seq to self or not, default False
