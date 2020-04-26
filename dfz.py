@@ -819,7 +819,7 @@ class cllMixin(dcmMixin, clmMixin):
             str_how in ['dpl']: drop documents in self.dts matched in dtf_mrg
         :return: if rtn is True, return self.dts
         """
-        if prm in ['vertical', 'vrl']:              # merging vertically
+        if prm.lower() in ['vertical', 'vrl']:              # merging vertically
             lst_dtf = []
             if self.len > 0:
                 lst_dtf.extend([self.dts])
@@ -827,7 +827,7 @@ class cllMixin(dcmMixin, clmMixin):
             if args:
                 lst_dtf.extend(lsz(args).typ_to_lst(rtn=True))
             self.dts = concat(lst_dtf, ignore_index=True)  # default keys=None, axis=0, sort=False
-        elif prm in ['outer_index', 'ndx']:         # merging by indexes
+        elif prm.lower() in ['outer_index', 'outerindex', 'ndx']:         # merging by indexes
             self.dts = merge(self.dts, dtf_mrg, how='outer', left_index=True, right_index=True)
         else:
             lst_clm_on = lsz(args)
@@ -979,7 +979,41 @@ class pltMixin(cllMixin):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(pltMixin, self).__init__(dts, lcn, spr=spr)
 
-    def add_clm_mom(self, *args, spr=False, rtn=False, prm=None):
+    def _rp_cll_grb(self, lst_clm, lst_srt=None, prm_grb=-2, flt_drp=1):
+        """
+        drop cells on certain index of any columns for grouping by. 对变量列排序后，删除前flt_drp行特定列的值.
+        >>> tst =dfz([{'A':'1','a':'x','B':100},{'A':'2','a':'x','B':110},{'A':'1','a':'y','B':150},{'A':'2','a':'y','B':100},])
+        >>> tst.typ_to_dtf()
+        >>> tst._rp_cll_grb('B', ['a','A'], -2, 1)
+           A  a      B
+        0  1  x    NaN
+        1  2  x  110.0
+        2  1  y    NaN
+        3  2  y  100.0
+        :param lst_clm: columns to be dropped
+        :param lst_srt: columns to be sorted
+        :param prm_grb: the target min column in lst_srt for grouping by. 分组后最小一级用于分组的变量所在lst_srt中的index
+        :param flt_drp: 选择抛弃的行数, 顺时针计算
+        :return: None
+        """
+        # 当存在多列排序时, 对不同汇总方式下的前n列进行赋空
+        if lst_srt:
+            self.srt_dcm(lst_srt)
+        lst_srt = lsz(lst_srt).typ_to_lst(rtn=True)
+        # 前几行的手工处理
+        for i in range(flt_drp):
+            for j in lst_clm:
+                self.dts.loc[i, j] = np_nan
+        # 当存在columns for grouping by时, 对每一组变量除datetime-like column外进行前n列的初始化
+        if len(lst_srt) > 1:
+            for i in range(self.len - 1):
+                if self.dts.loc[i, lst_srt[prm_grb]] != self.dts.loc[i + 1, lst_srt[prm_grb]]:
+                    for j in lst_clm:
+                        for k in range(flt_drp):
+                            self.dts.loc[i+k+1, j] = np_nan
+        self.dts_nit()
+
+    def add_clm_mom(self, *args, spr=False, rtn=False, prm=None, prm_grb=-2):
         """
         求环比变化率, add columns on month over month.
         >>> tst =dfz([{'A':'1','B':100},{'A':'2','B':110},{'A':'4','B':150},{'A':'3','B':100},])
@@ -990,10 +1024,18 @@ class pltMixin(cllMixin):
         1  2  110  0.1000
         2  3  100 -0.0909
         3  4  150  0.5000
+        >>> tst =dfz([{'A':'1','a':'x','B':100},{'A':'2','a':'x','B':110},{'A':'4','a':'x','B':150}])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_mom('B','b',prm=['a','A'],prm_grb=-2)
+           A  a    B    b
+        0  1  x  100  NaN
+        1  2  x  110  0.1
+        2  4  y  150  NaN   # 按照['a','A']的分组分别计算, 视prm_grb=-2为最细分组变量, prm[-1]通常为时间列
         :param args: target columns' name in format (x,) ,(oldColumn, newColumn), ({oldColumn: newColumn})
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :param prm: sorted documents by which columns before generating mom
+        :param prm_grb: if multi-columns in prm, choose a colume index to restart mom
         :return: None
         """
         if prm:
@@ -1008,6 +1050,7 @@ class pltMixin(cllMixin):
                     self.dts.loc[i, lst_new[k]] = round((self.dts.loc[i, lst_clm[k]] - self.dts.loc[i - 1, lst_clm[k]])
                                                         / self.dts.loc[i - 1, lst_clm[k]], 4)
         self.dts_nit()
+        self._rp_cll_grb(lst_new, prm, prm_grb, 1)
         if spr:
             self.spr_nit()
         if rtn:
@@ -1049,6 +1092,51 @@ class pltMixin(cllMixin):
         if rtn:
             return self.dts
 
+    def add_clm_rll(self, *args, num=3, fnc='mean', prm=None, spr=False, rtn=False):
+        """
+        add columns on rolling.
+        >>> tst =dfz([{'A':'1','a':'x','B':100},{'A':'2','a':'x','B':110},{'A':'1','a':'y','B':150},{'A':'2','a':'y','B':100},])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_rll('B', 'b', num=2, fnc='mean', prm=['a','A'], rtn=True)
+           A  a    B      b
+        0  1  x  100    NaN
+        1  2  x  110  105.0
+        2  1  y  150    NaN
+        3  2  y  100  125.0
+        :param args: in format ([columns for rolling],[new columns for the rolling columns])
+        :param num: window's width
+        :param fnc: rolling method, in ['sum', 'mean', 'std', 'max', 'min']
+        :param prm: columns for sorting before rolling, the last cell would be a datetime-like column
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: None
+        """
+        if prm:
+            self.srt_dcm(prm)
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
+        lst_clm = list(dct_rgs.keys())
+        lst_new = [i+'_rll' for i in dct_rgs.keys()] if \
+            len(args) == 1 and type(args[0]) not in [dict] else list(dct_rgs.values())
+        # 摘取需要rolling的部分单独进行计算并在完成计算后使用index横向拼接到原数据集
+        rll = cllMixin(self.dts[lst_clm].copy())
+        if fnc in [sum, 'sum']:
+            rll.dts = rll.dts.loc[:, lst_clm].rolling(num).sum()
+        elif fnc in ['mean']:
+            rll.dts = rll.dts.loc[:, lst_clm].rolling(num).mean()
+        elif fnc in ['std']:
+            rll.dts = rll.dts.loc[:, lst_clm].rolling(num).std()
+        elif fnc in ['max']:
+            rll.dts = rll.dts.loc[:, lst_clm].rolling(num).max()
+        elif fnc in ['min']:
+            rll.dts = rll.dts.loc[:, lst_clm].rolling(num).min()
+        rll.rnm_clm(lst_clm, lst_new)
+        self.mrg_dtf(rll.dts, prm='outerIndex')
+        self._rp_cll_grb(lst_new, prm, -2, num-1)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
 
 class dfz(tmsMixin, pltMixin):
     """
@@ -1058,4 +1146,4 @@ class dfz(tmsMixin, pltMixin):
         super(dfz, self).__init__(dts, lcn, spr=spr)
 
 
-print('info: class on dataFrame imported.')
+print('info: class on dataFrame operation imported.')

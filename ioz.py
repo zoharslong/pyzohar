@@ -277,7 +277,9 @@ class ioBsc(pd_DataFrame):
         :param rtn: return or not, default False
         :return: None if not rtn
         """
-        if self.len == 0 or self.dts in [None, [], [{}]]:
+        if self.typ in [typ_pd_DataFrame]:
+            pass
+        elif self.len == 0 or self.dts in [None, [], [{}]]:
             self.dts = pd_DataFrame()
         elif self.typ in [dict, dcz]:
             self.dts = pd_DataFrame([self.dts])
@@ -288,8 +290,6 @@ class ioBsc(pd_DataFrame):
         # from sas7bdat import SAS7BDAT as typ_sas7bdat
         # elif self.typ in [typ_sas7bdat]:  # https://pypi.org/project/sas7bdat/
         #     self.dts = self.dts.to_data_frame()
-        elif self.typ in [typ_pd_DataFrame]:
-            pass
         else:
             raise AttributeError('type of dts is not available')
         if spr:

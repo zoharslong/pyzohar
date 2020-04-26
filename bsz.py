@@ -1059,4 +1059,4 @@ class dtz(object):
             return self.val
 
 
-print('info: basic classes imported.')
+print('info: class on basic data type operation imported.')
