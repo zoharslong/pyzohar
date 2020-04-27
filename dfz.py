@@ -5,7 +5,8 @@ Created on Fri Mar 22 16:30:38 2019
 dataframe operation.
 @author: zoharslong
 """
-from numpy import nan as np_nan, max as np_max, min as np_min, sum as np_sum
+from numpy import nan as np_nan, max as np_max, min as np_min, sum as np_sum, std as np_std
+from numpy import mean as np_mean, median as np_med
 from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
@@ -239,7 +240,7 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def add_clm_spl(self, clm_spl, clm_vls, clm_rmn=None, *, spr=False, rtn=False):
+    def add_clm_spl(self, clm_spl, lst_vls, clm_rmn=None, *, spr=False, rtn=False):
         """
         add columns from spliting an column.
         >>> self = dfz([{'est':'A','date':'1','vls':1},{'est':'B','date':'1','vls':2},
@@ -251,7 +252,7 @@ class clmMixin(dfBsc):
         1    3    1.0    NaN
         2    2    NaN    2.0
         :param clm_spl: 用于分出多列的列，列中的每一种唯一元素都会成为新的列
-        :param clm_vls: 用于分到多列的值
+        :param lst_vls: 用于分到多列的值
         :param clm_rmn: 保留到新表中的用作拼接的列
         :param spr: let self = self.dts
         :param rtn: default False, return None
@@ -259,13 +260,15 @@ class clmMixin(dfBsc):
         """
         dtf_fnl = DataFrame([])
         clm_spl_cll = self.dts[clm_spl].unique()
+        lst_vls = lsz(lst_vls).typ_to_lst(rtn=True)
         # 对clm_rmn进行预处理
         if clm_rmn is None:
             clm_ttl = [i for i in lsz(self.clm.copy()).typ_to_lst(rtn=True) if i not in [clm_spl]]
-            clm_rmn = [i for i in clm_ttl if i not in [clm_vls, clm_spl]]
+            clm_rmn = [i for i in clm_ttl if i not in lst_vls+[clm_spl]]
         else:
-            clm_rmn = [i for i in lsz(clm_rmn).typ_to_lst(rtn=True) if i not in [clm_vls, clm_spl]]
-            clm_ttl = lsz(clm_rmn + [clm_vls]).typ_to_lst(rtn=True)
+            clm_rmn = [i for i in lsz(clm_rmn).typ_to_lst(rtn=True) if i not in lst_vls+[clm_spl]]
+            clm_ttl = lsz(clm_rmn + lst_vls).typ_to_lst(rtn=True)
+        print(clm_ttl)
         # 如果存在标志列重复的行，则终止本次列转行操作，因为会在拼接过程中导致虚增重复的行数
         len_bfr = self.len
         chk_dpl = self.dts.drop_duplicates(subset=[clm_spl] + clm_rmn, keep='first')
@@ -274,7 +277,7 @@ class clmMixin(dfBsc):
         # clm_spl中每个唯一的cell进行一次clm_vls列的值转新列的操作
         for i in range(clm_spl_cll.shape[0]):
             dtf_tmp = self.dts.loc[self.dts[clm_spl] == clm_spl_cll[i], :][clm_ttl]
-            dtf_tmp.rename(columns={clm_vls: clm_vls+'_'+clm_spl_cll[i]}, inplace=True)
+            dtf_tmp.rename(columns={j: j+'_'+clm_spl_cll[i] for j in lst_vls}, inplace=True)
             dtf_fnl = dtf_tmp.copy() if dtf_fnl.shape[0] == 0 else merge(dtf_fnl, dtf_tmp, how='outer', on=clm_rmn)
         self.dts = dtf_fnl
         if spr:
@@ -1056,7 +1059,7 @@ class pltMixin(cllMixin):
         if rtn:
             return self.dts
 
-    def add_clm_per(self, lst_grb, *args, spr=False, rtn=False, prm=True):
+    def add_clm_per(self, *args, spr=False, rtn=False, prm=None, drp=True):
         """
         add columns on each documents percents of each group. 根据某个分组汇总后计算每一行在该分组总量中的占比并形成新列.
         >>> tst =dfz([{'A':'a','B':100},{'A':'a','B':110},{'A':'b','B':150},{'A':'c','B':100},])
@@ -1067,32 +1070,33 @@ class pltMixin(cllMixin):
         1  a  110  0.5238
         2  b  150  1.0000
         3  c  100  1.0000
-        :param lst_grb: 用于分组的变量名列表
+        :param prm: 用于分组的变量名列表
         :param args: 需要计算值的比例的变量名列表
         :param spr: let self = self.dts
         :param rtn: default False, return None
-        :param prm: if drop template columns '_sum_x' or not, default True=drop.
+        :param drp: if drop template columns '_sum_x' or not, default True=drop.
         :return: None
         """
+        prm = list(self.clm)[0] if prm is None else prm
         dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
         dct_grb = dct_rgs.copy()
         for i in dct_grb.keys():
             dct_grb[i] = np_sum
         dtmp = self.dts.copy()
-        dsrt = self.stt_clm(lst_grb, dct_grb, prm=['_sum_'+i for i in dct_grb.keys()], rtn=True)
+        dsrt = self.stt_clm(prm, dct_grb, prm=['_sum_'+i for i in dct_grb.keys()], rtn=True)
         self.dts = dtmp
-        self.mrg_dtf(dsrt, lst_grb, prm='left')
+        self.mrg_dtf(dsrt, prm, prm='left')
         for i in dct_rgs.keys():
             self.dts[dct_rgs[i]] = self.dts.apply(lambda x: round(x[i]/x['_sum_'+i], 4), axis=1)
         self.dts_nit()
-        if prm:
+        if drp:
             self.drp_clm(['_sum_'+i for i in dct_grb.keys()])
         if spr:
             self.spr_nit()
         if rtn:
             return self.dts
 
-    def add_clm_rll(self, *args, num=3, fnc='mean', prm=None, spr=False, rtn=False):
+    def add_clm_rll(self, *args, spr=False, rtn=False, prm=None, num=3, fnc='mean'):
         """
         add columns on rolling.
         >>> tst =dfz([{'A':'1','a':'x','B':100},{'A':'2','a':'x','B':110},{'A':'1','a':'y','B':150},{'A':'2','a':'y','B':100},])
@@ -1132,6 +1136,50 @@ class pltMixin(cllMixin):
         rll.rnm_clm(lst_clm, lst_new)
         self.mrg_dtf(rll.dts, prm='outerIndex')
         self._rp_cll_grb(lst_new, prm, -2, num-1)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
+    def add_clm_nrm(self, *args, spr=False, rtn=False, prm=None):
+        """
+        add columns for normalization.
+        >>> tst = dfz([{'A': 1, 'B': 'a', 'vls': 100}, {'A': 1, 'B': 'a', 'vls': 110}, {'A': 1, 'B': 'c', 'vls': 120}])
+        >>> tst.typ_to_dtf()
+        >>> tst.add_clm_nrm('vls', prm=['A'])
+           A  B  vls  vls_nrm
+        0  1  a  100     -1.0
+        1  1  a  110      0.0
+        2  1  c  120      1.0
+        :param args: ([columns for normalization],[new columns name])
+        :param prm: list of columns to group by
+        :param spr: let self = self.dts
+        :param rtn: default False, return None
+        :return: None
+        """
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
+        lst_clm = list(dct_rgs.keys())
+        lst_new = [i+'_nrm' for i in dct_rgs.keys()] if \
+            len(args) == 1 and type(args[0]) not in [dict] else list(dct_rgs.values())
+        lst_grb = lsz(prm).typ_to_lst(rtn=True) if prm else [list(self.clm)[0]]     # 用于分组的列
+        # 计算分组的均值, 此处使用中位数
+        avg = dfz(self.dts.copy())
+        avg.stt_clm(lst_grb, lst_clm, [np_med])
+        avg.rnm_clm({i: '_'+i+'_avg' for i in lst_clm})
+        # 计算分组的标准差
+        std = dfz(self.dts.copy())
+        std.stt_clm(lst_grb, lst_clm, [np_std])
+        std.rnm_clm({i: '_'+i+'_std' for i in lst_clm})
+        avg.mrg_dtf(std.dts, lst_grb, prm='outer')
+        # 横向拼接和学生标准化
+        self.mrg_dtf(avg.dts, lst_grb, prm='outer')
+        for i in range(len(lst_clm)):
+            self.dts[lst_new[i]] = self.dts.apply(
+                lambda x: (x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg']) / x['_'+lst_clm[i]+'_std'], axis=1
+            )
+        self.dts_nit()
+        self.drp_clm(['_'+i+'_std' for i in lst_clm])
+        self.drp_clm(['_'+i+'_avg' for i in lst_clm])
         if spr:
             self.spr_nit()
         if rtn:
