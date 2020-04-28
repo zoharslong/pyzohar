@@ -11,6 +11,7 @@ from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
+from json import loads
 from .bsz import stz, lsz, dtz
 from .ioz import ioz
 
@@ -230,6 +231,8 @@ class clmMixin(dfBsc):
         """
         dtf_dtl = DataFrame([])
         for i in range(self.len):
+            self.dts[str_clm][i] = loads(self.dts[str_clm][i].replace("'",'"')) if \
+                type(self.dts[str_clm][i]) in [str] else self.dts[str_clm][i]
             len_tmp = len(self.dts[str_clm][i]) if type(self.dts[str_clm][i]) is list else 1  # 兼容{}, [{},{}]两种输入
             dtf_i = DataFrame(self.dts[str_clm][i], index=[int(i)]*len_tmp)
             dtf_dtl = concat([dtf_dtl, dtf_i])  # default prm axis=0, sort=False
