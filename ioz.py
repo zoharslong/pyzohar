@@ -14,7 +14,8 @@ from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGrou
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
 from time import sleep
 from os.path import exists, join as os_join
-# from fake_useragent import UserAgent
+from openpyxl import load_workbook                                      # 保存已有的excel文件中的表
+from fake_useragent import UserAgent
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from telnetlib import Telnet                                            # 代理ip有效性检测的第二种方法
 from pymongo import MongoClient
@@ -192,8 +193,7 @@ class ioBsc(pd_DataFrame):
         if 'pst' not in self.lcn.keys():
             self.lcn['pst'] = None      # post请求中在请求data中发送的参数数据
         if 'hdr' not in self.lcn.keys():
-            # self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 若未指定请求头就现编一个简直可怕
-            self.lcn['hdr'] = None  # 若未指定请求头就现编一个简直可怕
+            self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 若未指定请求头就现编一个简直可怕
         if 'prx' not in self.lcn.keys():
             self.lcn['prx'] = None      # 是否调用代理
         if 'prm' not in self.lcn.keys():
@@ -448,9 +448,14 @@ class lclMixin(ioBsc):
         :return: None
         """
         if self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
-            self.dts.to_excel(os_join(self.lcn['fld'], self.lcn['fls']), index=ndx)
+            self.dts.to_excel(os_join(self.lcn['fld'], self.lcn['fls']), sheet_name=prm, index=ndx)
         elif self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
-            writer = ExcelWriter(os_join(self.lcn['fld'], self.lcn['fls']))
+            writer = ExcelWriter(os_join(self.lcn['fld'], self.lcn['fls']), engine='openpyxl')
+            try:
+                book = load_workbook(os_join(self.lcn['fld'], self.lcn['fls']))     # 尝试保存已有的文件内容
+                writer.book = book
+            except FileNotFoundError:
+                pass
             self.dts.to_excel(writer, sheet_name=prm, index=ndx)
             writer.save()
             writer.close()
