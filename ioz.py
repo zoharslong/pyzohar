@@ -572,7 +572,7 @@ class mngMixin(ioBsc):
         """
 
         @param dct_qry:
-        @param dct_ltr:
+        @param dct_ltr: needs '$set', '$inc'
         @return:
         """
         prc_update_many = self._myCln.update_many(dct_qry, dct_ltr, upsert=True)
