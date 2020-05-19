@@ -8,4 +8,4 @@ if __name__ == '__main__':
     print('info: running as a new program.')
 else:
     print('info: pyzohar initiation succeeded.')
-print('info: needs bson, pymongo_3.9.0, pymysql_0.9.3, fake-useragent.')
+    print('info: needs bson, pymongo_3.9.0, pymysql_0.9.3, fake-useragent_0.1.11.')

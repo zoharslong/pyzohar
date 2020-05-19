@@ -341,6 +341,7 @@ class lclMixin(ioBsc):
         """
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
+        fls = fls[0] if type(fls) in [list] else fls
         sep = ',' if sep is None else sep
         self.dts = read_csv(os_join(fld, fls), sep=sep)
         if spr:
@@ -361,6 +362,7 @@ class lclMixin(ioBsc):
         """
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
+        fls = fls[0] if type(fls) in [list] else fls
         hdr = 0 if hdr is None else hdr
         sht = 0 if sht is None else sht
         self.dts = read_excel(os_join(fld, fls), header=hdr, sheet_name=sht)
@@ -384,7 +386,11 @@ class lclMixin(ioBsc):
         #     self.spr_nit()
         # if rtn:
         #     return self.dts
-        pass
+        fld = self.lcn['fld'] if fld is None else fld
+        fls = self.lcn['fls'] if fls is None else fls
+        fls = fls[0] if type(fls) in [list] else fls
+        with open(os_join(fld, fls), mode='r', encoding='utf-8') as act:
+            self.dts = act.readlines()  # 读出的为列表
 
     def lcl_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
         """
@@ -398,7 +404,7 @@ class lclMixin(ioBsc):
         """
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
             self.lcn = {'fls': [self.lcn['fls']]}
-        dtf_mrg = pd_DataFrame() if not self.dts else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
+        dtf_mrg = pd_DataFrame() if self.dts in [None,[]] else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
         for i_fls in self.lcn['fls']:
             if i_fls.rsplit('.')[1] in ['csv']:
                 self.mpt_csv(fls=i_fls, sep=sep)
@@ -406,6 +412,7 @@ class lclMixin(ioBsc):
                 self.mpt_xcl(fls=i_fls, hdr=hdr, sht=sht)
             elif i_fls.rsplit('.')[1] in ['txt']:
                 self.mpt_txt(fls=i_fls)
+                self.typ_to_dtf()
             dtf_mrg = concat([dtf_mrg, self.dts], ignore_index=True)    # 忽视index的多文件纵向拼接, prm: sort=False
         self.dts = dtf_mrg
         if spr:
@@ -413,7 +420,7 @@ class lclMixin(ioBsc):
         if rtn:
             return self.dts
 
-    def xpt_txt(self, *, typ='w', sep=2, cvr=True):
+    def xpt_txt(self, fld=None, fls=None, *, typ='w', sep=2, cvr=True):
         """
         import dataset to file.txt or file.js(https://blog.csdn.net/matrix_google/article/details/76861485).
         :param typ: type of open, usually in ['a','w'], a for continue, w for cover
@@ -421,16 +428,20 @@ class lclMixin(ioBsc):
         :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
         :return: None
         """
-        if exists(os_join(self.lcn['fld'], self.lcn['fls'])) and cvr is False:
+        fld = self.lcn['fld'] if fld is None else fld
+        fls = self.lcn['fls'] if fls is None else fls
+        fls = fls[0] if type(fls) in [list] else fls
+        if exists(os_join(self.lcn['fld'], fls)) and cvr is False:
             print("stop: the txt %s already exists." % str(self.lcn.values()))
-        elif type(self.dts) not in [list, typ_pd_DataFrame]:
-            print('stop: type of dts_npt needs [list, pd.DataFrame].')
+        elif type(self.dts) not in [str, list, typ_pd_DataFrame]:
+            print('stop: type of dts_npt needs [str, list, pd.DataFrame].')
         else:
+            self.dts = [self.dts] if self.typ in [str] else self.dts
             if self.typ is list:
                 lst_dts_mpt = [str(i_dcm) for i_dcm in self.dts]
             else:  # alter the type of a line in dataframe from slice to str
                 lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self.dts.to_dict(orient='split')['data']]
-            prc_txt_writer = open(os_join(self.lcn['fld'], self.lcn['fls']), typ, encoding='utf-8')
+            prc_txt_writer = open(os_join(self.lcn['fld'], fls), typ, encoding='utf-8')
             for i in range(len(self.dts)):
                 prc_txt_writer.writelines(lst_dts_mpt[i])
                 prc_txt_writer.write('\n')
@@ -447,21 +458,22 @@ class lclMixin(ioBsc):
         :param prm: if typ='a' and fls in type '.xlsx', continue to write the excel, use prm to define the sheet name
         :return: None
         """
-        if self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
-            self.dts.to_excel(os_join(self.lcn['fld'], self.lcn['fls']), sheet_name=prm, index=ndx)
-        elif self.lcn['fls'].rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
-            writer = ExcelWriter(os_join(self.lcn['fld'], self.lcn['fls']), engine='openpyxl')
+        fls = self.lcn['fls'][0] if type(self.lcn['fls']) in [list] else self.lcn['fls']
+        if fls.rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
+            self.dts.to_excel(os_join(self.lcn['fld'], fls), sheet_name=prm, index=ndx)
+        elif fls.rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
+            writer = ExcelWriter(os_join(self.lcn['fld'], fls), engine='openpyxl')
             try:
-                book = load_workbook(os_join(self.lcn['fld'], self.lcn['fls']))     # 尝试保存已有的文件内容
+                book = load_workbook(os_join(self.lcn['fld'], fls))     # 尝试保存已有的文件内容
                 writer.book = book
             except FileNotFoundError:
                 pass
             self.dts.to_excel(writer, sheet_name=prm, index=ndx)
             writer.save()
             writer.close()
-        elif self.lcn['fls'].rsplit('.')[1] in ['csv']:
-            self.dts.to_csv(os_join(self.lcn['fld'], self.lcn['fls']), encoding='UTF-8_sig')    # 不明原因的解码方式
-        elif self.lcn['fls'].rsplit('.')[1] in ['js', 'txt']:
+        elif fls.rsplit('.')[1] in ['csv']:
+            self.dts.to_csv(os_join(self.lcn['fld'], fls), encoding='UTF-8_sig')    # 不明原因的解码方式
+        elif fls.rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
         else:
             print('stop: known exporting type.')
