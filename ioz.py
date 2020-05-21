@@ -770,8 +770,8 @@ class apiMixin(ioBsc):
             'prm': {
                 'num': '1',         # 一次请求的数量
                 'type': '2',        # json type
-                'pro': '440000',    # 广东
-                'city': '440100',   # 广州
+                'pro': '0',    # 广东
+                'city': '0',   # 440100 - 广州; 441900 - 东莞
                 'yys': '0',
                 'port': '1',        # 1 for http, 11 for https
                 # 'pack': '20855',  # 套餐ID, 无套餐直接使用余额则为空
@@ -783,7 +783,7 @@ class apiMixin(ioBsc):
                 'sb': '0',
                 'pb': '4',
                 'mr': '1',
-                'regions': '',
+                'regions': '440000',  # 广东省份混拨
             },
             'ppc': {'key': ['data']},
         }
