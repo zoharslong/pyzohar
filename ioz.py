@@ -915,7 +915,7 @@ class apiMixin(ioBsc):
                 self.api_prx(frc=frc)
             finally:
                 bch += 1
-                if bch == 3:
+                if bch == 2:
                     self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
                     print('info: max batches, proxy forces switch.')
         try:                                    # 请求阶段结束, 进入API结果的装载阶段
