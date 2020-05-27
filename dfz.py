@@ -293,14 +293,19 @@ class clmMixin(dfBsc):
         add new columns of certain columns in category.
         >>> tst = dfz([{'A':1},{'A':2},{'A':3},{'A':4},{'A':5},])
         >>> tst.typ_to_dtf()
-        >>> tst.add_clm_ctg('A',ctg_lbl=['a','b','c','d','e'],bln_lwr=True)
+        >>> tst.add_clm_ctg('A',ctg_lbl=['a','b','c','d','e'],bln_lwr=True)  # 按默认参数自动按值分成两箱
            A
         0  a
         1  a
         2  a
         3  b
         4  b
-        :param args:
+        >>> tst = dfz([{'A':1},{'A':2},{'A':3},{'A':4},{'A':5},])
+        >>> tst.typ_to_dtf()
+        >>> lst_sqr_cut = [0,40,60,80,100,120,140,scd.dts['msg_sqr'].max()]
+        >>> lst_sqr_lbl = ['-40','40-60','60-80','80-100','100-120','120-140','140-']
+        >>> tst.add_clm_ctg('A', 'a', prm=lst_sqr_cut, ctg_lbl=lst_sqr_lbl)  # 指定分箱界限
+        :param args: {'targetColumn':'newColumn'}
         :param prm: in ['number', 'num', 'width']
         :param ctg_num: the number of boxes if prm in ['num', 'number'], the width of each box if prm in ['width']
         :param ctg_edg: the min and max limitation of th category
@@ -329,6 +334,8 @@ class clmMixin(dfBsc):
         elif prm is 'width':    # option: 确定分箱宽度
             from math import ceil
             lst_bns = [flt_min] + [flt_min+(i+1)*ctg_num for i in range(ceil(flt_cts))]
+        else:
+            lst_bns = lsz(prm).typ_to_lst(rtn=True)  # 也可以在prm中直接指定分箱分界线
         # 基础分箱
         ctg_lbl = ctg_lbl[:len(lst_bns) - 1] if ctg_lbl is not None else ctg_lbl
         self.dts[str_xpt] = cut(self.dts[str_mpt], lst_bns, labels=ctg_lbl, include_lowest=bln_lwr)
