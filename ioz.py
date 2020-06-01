@@ -451,8 +451,9 @@ class lclMixin(ioBsc):
                 lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self.dts.to_dict(orient='split')['data']]
             prc_txt_writer = open(os_join(self.lcn['fld'], fls), typ, encoding='utf-8')
             for i in range(len(self.dts)):
+                if typ in ['a','A']:
+                    prc_txt_writer.write('\n')
                 prc_txt_writer.writelines(lst_dts_mpt[i])
-                prc_txt_writer.write('\n')
             prc_txt_writer.close()
             print("info: success input dts to txt %s." % str(self.lcn.values()))
 
@@ -766,23 +767,23 @@ class apiMixin(ioBsc):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
-    def _pi_prx_jgw(self, prm='http'):
+    def _pi_prx_jgw(self, prm='http', rty=3):
         """
-        get proxy from jiguang api. 从极光代理获取一个代理ip地址
-        from http://h.jiguangdaili.com/api/new_api.html
+        get proxy from jiguang api. 从极光代理获取一个代理ip地址.
+        from http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :param prm: in ['http', 'https']
-        :return: None, 一个有效的
+        :param rty: retry times, default 3
+        :return: None
         """
         dct_jgw = {
             'url': 'http://d.jghttp.golangapi.com/getip',
             'prm': {
                 'num': '1',         # 一次请求的数量
                 'type': '2',        # json type
-                'pro': '0',    # 广东
-                'city': '0',   # 440100 - 广州; 441900 - 东莞
+                'pro': '0',         # 440000 - 广东
+                'city': '0',        # 440100 - 广州; 441900 - 东莞
                 'yys': '0',
                 'port': '1',        # 1 for http, 11 for https
-                # 'pack': '20855',  # 套餐ID, 无套餐直接使用余额则为空
                 'time': '1',        # [1,2,3] for different available time period
                 'ts': '0',
                 'ys': '0',
@@ -792,41 +793,39 @@ class apiMixin(ioBsc):
                 'pb': '4',
                 'mr': '1',
                 'regions': '440000',  # 广东省份混拨
+                # 'pack': '20855',    # 套餐ID, 无套餐直接使用余额则为空
             },
             'ppc': {'key': ['data']},
         }
         dct_jgw['prm']['port'] = '1' if prm == 'http' else '11'
-        htp = 'http' if dct_jgw['prm']['port'] == '1' else 'https'
-        rtn, ipp_prx, bch = False, None, 0
-        while not rtn and bch <= 3:
+        htp = 'http' if prm == 'http' else 'https'
+        prc, bch, ipp_prx = True, 0, None
+        while prc and bch <= rty:
+            if bch == rty:                              # 当运行到第四轮时, 视为运行失败, 直接报错跳出
+                raise AttributeError('stop: something wrong with jiguang API, max retry.')
             mdl_prx = get(dct_jgw['url'], params=dct_jgw['prm'], timeout=180)
             mdl_prx.encoding = "utf-8"
             dct_prx = loads(mdl_prx.text)
-            try:                    # 尝试拼接标准格式的proxy
+            try:                                        # 尝试拼接标准格式的proxy
                 ipp_prx = htp + '://' + str(dct_prx['data'][0]['ip']) + ':' + str(dct_prx['data'][0]['port'])
-                rtn = True
                 print('info: proxy shifted to %s.' % ipp_prx)
-            except (IndexError, KeyError):      # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
-                # {"code":113,"data":[],"msg":"请添加白名单xxx.xx.xxx.xxx","success":false}
-                if dct_prx['code'] in [113, '113']:
-                    wht = re_find('请添加白名单(.*$)', dct_prx['msg'])[0]
+                prc = False
+            except (IndexError, KeyError):              # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
+                if dct_prx['code'] in [113, '113']:     # {"code":113,"data":[],"msg":"请添加白名单xxxx","success":false}
                     url_wht = 'http://webapi.jghttp.golangapi.com/index/index/save_white'
                     dct_wht = {
                         'neek': '18724',
                         'appkey': '1fc131e1f4fd096f4722a5ed3ff66a45',
-                        'white': wht
+                        'white': re_find('请添加白名单(.*$)', dct_prx['msg'])[0]
                     }
                     get(url_wht, params=dct_wht)
-                    sleep(3)        # 添加白名单的操作后需要等待2秒
-                # {"code":111,"data":[],"msg":"请2秒后再试","success":false}
-                elif dct_prx['code'] in [111, '111']:
+                    sleep(3)                            # 添加白名单的操作后需要等待2秒
+                elif dct_prx['code'] in [111, '111']:   # {"code":111,"data":[],"msg":"请2秒后再试","success":false}
                     sleep(int(re_find('请(\d+)秒后再试', dct_prx['msg'])[0])+1)
-                else:               # 当API异常并不是由于白名单问题造成时报错
+                else:                                   # 当API异常并不是由于白名单问题造成时报错
                     raise KeyError('stop: something wrong with the result <%s>.' % str(mdl_prx.text))
             finally:
                 bch += 1
-            if bch == 3:
-                raise AttributeError('stop: something wrong with jiguang API, max retry.')
         if ipp_prx:
             self.lcn['prx'] = {htp: ipp_prx}
 
@@ -868,42 +867,43 @@ class apiMixin(ioBsc):
                           re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
                           timeout=30):  # 使用telnet验证代理效果
                     return True
-                else:
-                    return False
             except TimeoutError:
                 return False
 
-    def api_prx(self, prm='http', frc=False):
+    def api_prx(self, prm='http', frc=False, rty=2):
         """
         当self.lcn.prx代理不为空, 即采用代理时, 调用代理是否有效的检查，若无效则更新代理, 更新五次失败则报错
         :param frc: forced refresh, default False means not refresh if ip test is passed
         :param prm: in ['http','https'], default 'http'
+        :param rty: retry times, default 2
         :return:
         """
         if self.lcn['prx']:
             if frc:
                 self._pi_prx_jgw(prm=prm)       # 强制更新一次proxy
             bch = 0
-            while not self._pi_prx_chk() and bch <= 3:
+            while not self._pi_prx_chk() and bch <= rty:
+                if bch == rty:
+                    raise AttributeError('stop: max retry, cannot pass proxy test for 3 times.')
                 self._pi_prx_jgw(prm=prm)
                 bch += 1
-                if bch == 3:
-                    raise AttributeError('stop: max retry, cannot pass proxy test for 3 times.')
 
-    def api_run(self, *, spr=False, rtn=False, prm='post', frc=False):
+    def api_run(self, *, spr=False, rtn=False, prm='post', frc=False, rty=3):
         """
-        兼容POST/GET两种方法的调用
+        兼容POST/GET两种方法的调用, self.lcn.pst在post中输入data, self.lcn.prm在get中输入params.
+        此处的循环检查只针对网页连接结果反馈不为200的情况, 而不是检查返回的内容是否满足需求.
         from https://www.cnblogs.com/roadwide/p/10804888.html
         :param spr:
         :param rtn:
         :param prm: in ['post', 'get'], the methods of requests
         :param frc: force change proxy or not
+        :param rty: retry, if the result is not available, define retry times, default 3.
         :return:
         """
-        # 针对post请求, 注意self.lcn.pst参数
         self.api_prx(frc=frc)       # 初始化更新proxy, 仅用于处理prx='auto'的情况
-        prc, bch, mdl_rqt = True, 0, None
-        while prc and bch <= 3:     # 满足本次请求的返回statusCode为200即请求成功, 或循环3次失败
+        prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
+        while prc and bch <= rty:
+        # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
             try:
                 mdl_rqt = post(
                     self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
@@ -913,29 +913,28 @@ class apiMixin(ioBsc):
                     headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
                 )                   # 针对POST/GET请求, 分别注意self.lcn.pst/self.lcn/prm参数
                 mdl_rqt.encoding = "utf-8"
-                if self.lcn['prx'] in [None]:
-                    prc = False             # 当不使用代理时, 不进行循环
-                elif mdl_rqt.status_code in [200]:
-                    prc = False             # 当本次POST/GET请求获得200返回码时, 进入结果装载环节
+                if mdl_rqt.status_code in [200]:
+                    prc = False             # 当不使用代理或网页返回了信息时, 不进行循环
                 else:
                     self.api_prx(frc=frc)   # 其他情况酌情更新代理
             except (ProtocolError, ChunkedEncodingError):   # proxy ip timeout, change proxy
                 self.api_prx(frc=frc)
             finally:
                 bch += 1
-                if bch == 2:
+                if bch == rty-1:
                     self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
                     print('info: max batches, proxy forces switch.')
-        try:                                    # 请求阶段结束, 进入API结果的装载阶段
-            self.dts = loads(mdl_rqt.text)      # 优先尝试js解码
-        except JSONDecodeError:
-            self.dts = mdl_rqt.text             # 若js解码失败则直接装载self.dts
+        # 请求阶段结束, 进入API结果的装载阶段
+        try:                                # 优先尝试js解码
+            self.dts = loads(mdl_rqt.text)
+        except JSONDecodeError:             # 若js解码失败则直接装载self.dts
+            self.dts = mdl_rqt.text
         if spr:
             self.spr_nit()
         if rtn:
             return self.dts
 
-    def get_vls(self, lst_kys, *, spr=False, rtn=False):
+    def get_vls(self, lst_kys=None, *, spr=False, rtn=False):
         """
         get values from dict by keys in api feedback.
         :param lst_kys:
@@ -945,18 +944,18 @@ class apiMixin(ioBsc):
         """
         if lst_kys:
             lst_kys = lsz(lst_kys).typ_to_lst(rtn=True)
-            for i in lst_kys:
-                try:
+            try:
+                for i in lst_kys:
                     self.dts = self.dts[i]
-                    if spr:
-                        self.spr_nit()
-                    if rtn:
-                        return self.dts
-                except KeyError:
-                    print(str(self.__dts)[:8]+'..')
-                    raise KeyError('%s do not exist' % i)
+                if spr:
+                    self.spr_nit()
+                if rtn:
+                    return self.dts
+            except KeyError:
+                print(str(self.__dts)[:8]+'..')
+                raise KeyError('%s do not exist' % i)
 
-    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False):
+    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False, rty=3):
         """
         import data from API in json decoding.
         :param lst_kys:
@@ -964,9 +963,10 @@ class apiMixin(ioBsc):
         :param rtn:
         :param prm:
         :param frc: shift proxy ip forced
+        :param rty: retry times, default 3
         :return:
         """
-        self.api_run(prm=prm, frc=frc)
+        self.api_run(prm=prm, frc=frc, rty=rty)
         self.get_vls(lst_kys)
         if spr:
             self.spr_nit()

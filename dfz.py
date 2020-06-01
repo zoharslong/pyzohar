@@ -916,7 +916,7 @@ class tmsMixin(cllMixin):
         if rtn:
             return self.dts
 
-    def tms_to_typ(self, *args, spr=False, rtn=False, prm='%Y-%m-%d'):
+    def tms_to_typ(self, *args, spr=False, rtn=False, prm='%Y-%m-%d', prn=True):
         """
         columns from timestamp to other types.
         >>> tst = dfz([{'A':'2019-04-21'},{'A':'2019/4/21'}])
@@ -929,6 +929,7 @@ class tmsMixin(cllMixin):
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :param prm: if type in 'str', define the format of the column
+        :param prn: print info or not, default True
         :return: if rtn is True, return self.dts
         """
         if type(args[0]) is dict and len(args) == 1:
@@ -942,7 +943,7 @@ class tmsMixin(cllMixin):
         for i in range(len(lst_clm)):
             if lst_typ[i] in ['w', 'm']:
                 self.dts[lst_clm[i]] = self.dts.apply(
-                    lambda x: dtz(x[lst_clm[i]]).dtt_to_prd(lst_typ[i], rtn=True), axis=1)
+                    lambda x: dtz(x[lst_clm[i]]).dtt_to_prd(lst_typ[i], rtn=True, prn=prn), axis=1)
             else:
                 self.dts[lst_clm[i]] = self.dts.apply(
                     lambda x: dtz(x[lst_clm[i]]).dtt_to_typ(lst_typ[i], prm, rtn=True), axis=1)
@@ -1151,7 +1152,7 @@ class pltMixin(cllMixin):
         if rtn:
             return self.dts
 
-    def add_clm_nrm(self, *args, spr=False, rtn=False, prm=None):
+    def add_clm_nrm(self, *args, spr=False, rtn=False, prm=None, ltr=False):
         """
         add columns for normalization.
         >>> tst = dfz([{'A': 1, 'B': 'a', 'vls': 100}, {'A': 1, 'B': 'a', 'vls': 110}, {'A': 1, 'B': 'c', 'vls': 120}])
@@ -1171,10 +1172,14 @@ class pltMixin(cllMixin):
         lst_clm = list(dct_rgs.keys())
         lst_new = [i+'_nrm' for i in dct_rgs.keys()] if \
             len(args) == 1 and type(args[0]) not in [dict] else list(dct_rgs.values())
+        if prm is None:
+            self.dts['_grb'] = 1
+            self.dts_nit()
+            self.srt_clm('_grb',drp=False)
         lst_grb = lsz(prm).typ_to_lst(rtn=True) if prm else [list(self.clm)[0]]     # 用于分组的列
         # 计算分组的均值, 此处使用中位数
         avg = dfz(self.dts.copy())
-        avg.stt_clm(lst_grb, lst_clm, [np_med])
+        avg.stt_clm(lst_grb, lst_clm, [np_mean])
         avg.rnm_clm({i: '_'+i+'_avg' for i in lst_clm})
         # 计算分组的标准差
         std = dfz(self.dts.copy())
@@ -1183,11 +1188,24 @@ class pltMixin(cllMixin):
         avg.mrg_dtf(std.dts, lst_grb, prm='outer')
         # 横向拼接和学生标准化
         self.mrg_dtf(avg.dts, lst_grb, prm='outer')
+        if ltr:
+            for i in range(len(lst_clm)):
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: x['_'+lst_clm[i]+'_avg'] + 3*x['_'+lst_clm[i]+'_std'] if
+                    x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg'] > 3*x['_'+lst_clm[i]+'_std'] else
+                    x[lst_clm[i]] , axis=1
+                )
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: x['_'+lst_clm[i]+'_avg'] - 3*x['_'+lst_clm[i]+'_std'] if
+                    x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg'] < -3*x['_'+lst_clm[i]+'_std'] else
+                    x[lst_clm[i]] , axis=1
+                )
         for i in range(len(lst_clm)):
             self.dts[lst_new[i]] = self.dts.apply(
-                lambda x: (x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg']) / x['_'+lst_clm[i]+'_std'], axis=1
+                lambda x: round((x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg']) / x['_'+lst_clm[i]+'_std'],6), axis=1
             )
         self.dts_nit()
+        self.drp_clm(['_grb'])
         self.drp_clm(['_'+i+'_std' for i in lst_clm])
         self.drp_clm(['_'+i+'_avg' for i in lst_clm])
         if spr:

@@ -881,7 +881,7 @@ class dtz(object):
         if rtn:
             return self.val
 
-    def dtt_to_prd(self, str_kwd='w', rtn=False):
+    def dtt_to_prd(self, str_kwd='w', rtn=False, prn=True):
         """
         alter datetime.datetime type to period string in format ['%Yw%w','%Ym%m'].
         >>> dtt = dtz('now')
@@ -905,7 +905,8 @@ class dtz(object):
             str_kyr = str(int_kyr)[2:] if str_kwd.islower() else str(int_kyr)
             self.val = "%s%s%s" % (str_kyr, str_kwd.lower(), str(int_kwd).zfill(2))
         else:
-            print('info: None cannot convert to "%y[wm]%d" format.')
+            if prn:
+                print('info: None cannot convert to "%y[wm]%d" format.')
         if rtn:
             return self.val
 
