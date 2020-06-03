@@ -17,7 +17,7 @@ from os import listdir
 from tempfile import gettempdir                                         # 用于搜索fakeuseragent本地temp
 from os.path import exists, join as os_join
 from openpyxl import load_workbook                                      # 保存已有的excel文件中的表
-from fake_useragent import UserAgent, VERSION as fku_version
+from fake_useragent import UserAgent, VERSION as fku_version, FakeUserAgentError
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from telnetlib import Telnet                                            # 代理ip有效性检测的第二种方法
 from pymongo import MongoClient
@@ -197,7 +197,7 @@ class ioBsc(pd_DataFrame):
         if 'hdr' not in self.lcn.keys():
             try:
                 self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 若未指定请求头就现编一个简直可怕
-            except TimeoutError:
+            except (TimeoutError, FakeUserAgentError):
                 if 'fake_useragent_'+fku_version+'.json' not in listdir(gettempdir()):
                     fku = get('https://fake-useragent.herokuapp.com/browsers/'+fku_version, timeout=180)
                     with open(os_join(gettempdir(), 'fake_useragent_'+fku_version+'.json'), "w") as wrt:
