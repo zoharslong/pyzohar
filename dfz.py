@@ -1152,6 +1152,55 @@ class pltMixin(cllMixin):
         if rtn:
             return self.dts
 
+    def add_clm_err(self, *args, spr=False, rtn=False, prm=None):
+        """
+        学生标准化.
+        @param args:
+        @param spr:
+        @param rtn:
+        @param prm:
+        @return:
+        """
+        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
+        lst_clm = list(dct_rgs.keys())
+        lst_new = [i + '_nrm' for i in dct_rgs.keys()] if \
+            len(args) == 1 and type(args[0]) not in [dict] else list(dct_rgs.values())
+        if prm is None:
+            self.dts['_grb'] = 1
+            self.dts_nit()
+            self.srt_clm('_grb', drp=False)
+        lst_grb = lsz(prm).typ_to_lst(rtn=True) if prm else [list(self.clm)[0]]  # 用于分组的列
+        # 计算分组的均值, 此处使用中位数
+        avg = dfz(self.dts.copy())
+        avg.stt_clm(lst_grb, lst_clm, [np_mean])
+        avg.rnm_clm({i: '_' + i + '_avg' for i in lst_clm})
+        # 计算分组的标准差
+        std = dfz(self.dts.copy())
+        std.stt_clm(lst_grb, lst_clm, [np_std])
+        std.rnm_clm({i: '_' + i + '_std' for i in lst_clm})
+        avg.mrg_dtf(std.dts, lst_grb, prm='outer')
+        # 横向拼接和学生标准化
+        self.mrg_dtf(avg.dts, lst_grb, prm='outer')
+        for i in range(len(lst_clm)):
+            self.dts[lst_new[i]] = self.dts.apply(
+                lambda x: x['_' + lst_clm[i] + '_avg'] + 3 * x['_' + lst_clm[i] + '_std'] if
+                x[lst_clm[i]] - x['_' + lst_clm[i] + '_avg'] > 3 * x['_' + lst_clm[i] + '_std'] else
+                x[lst_clm[i]], axis=1
+            )
+            self.dts[lst_new[i]] = self.dts.apply(
+                lambda x: x['_' + lst_clm[i] + '_avg'] - 3 * x['_' + lst_clm[i] + '_std'] if
+                x[lst_clm[i]] - x['_' + lst_clm[i] + '_avg'] < -3 * x['_' + lst_clm[i] + '_std'] else
+                x[lst_clm[i]], axis=1
+            )
+        self.dts_nit()
+        self.drp_clm(['_grb'])
+        self.drp_clm(['_'+i+'_std' for i in lst_clm])
+        self.drp_clm(['_'+i+'_avg' for i in lst_clm])
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
     def add_clm_nrm(self, *args, spr=False, rtn=False, prm=None, ltr=False):
         """
         add columns for normalization.

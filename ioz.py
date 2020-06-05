@@ -60,7 +60,7 @@ class ioBsc(pd_DataFrame):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         # all the i/o operations have the same attributes for locate target data: location and collection
         super().__init__()                  # 不将dts预传入DataFrame
-        self.__dts, self.typ = None, None   # 接受数据
+        self.__dts, self._dts, self.typ = None, None, None   # 接受数据
         self.len, self.clm, self.hdr, self.tal = None, None, None, None
         self.kys, self.vls = None, None
         self.__lcn, self.iot = None, None   # 连接信息
