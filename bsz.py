@@ -823,7 +823,10 @@ class dtz(object):
                 self.val = dt_datetime.fromtimestamp(int(self.val.rsplit('.')[0]))
             else:
                 try:                # 正常情况：匹配正则表达式后转为datatime
-                    self.val = dt_datetime.strptime(self.val, self.fmt[0])
+                    if self.fmt[0] in ['%yw%w', '%Yw%w']:
+                        self.prd_to_dtt()
+                    else:
+                        self.val = dt_datetime.strptime(self.val, self.fmt[0])
                 except IndexError:  # 对无法找到合适正则匹配（如''空字符串）则赋空
                     self.val = None
                     print('info: %s cannot convert to datetime type.' % str(self.val))
