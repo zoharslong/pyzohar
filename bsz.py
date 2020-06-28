@@ -20,7 +20,7 @@ from pandas.core.series import Series as typ_pd_Series                  # 定义
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义dataframe.index类型
-from pandas._libs.tslibs.nattype import NaTType as pd_NaT
+from pandas._libs.tslibs.nattype import NaTType as typ_pd_NaT
 from pandas._libs.tslib import Timestamp as typ_pd_Timestamp
 from pandas import DataFrame as pd_DataFrame
 from pandas import to_datetime as pd_to_datetime
@@ -720,7 +720,7 @@ class dtz(object):
         int,
         float,
         list,
-        pd_NaT,
+        typ_pd_NaT,
         dt_datetime,
         typ_dt_date,
         typ_dt_time,
@@ -802,7 +802,7 @@ class dtz(object):
         """
         if self.typ in [dt_datetime]:
             pass
-        elif self.typ in [pd_NaT, type(None)]:
+        elif self.typ in [typ_pd_NaT, type(None)]:
             self.val = None
         elif self.typ in [typ_dt_date]:
             self.val = dt_datetime.combine(self.val, typ_dt_time())
