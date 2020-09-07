@@ -951,9 +951,9 @@ class apiMixin(ioBsc):
                     self.spr_nit()
                 if rtn:
                     return self.dts
-            except KeyError:
-                print(str(self.__dts)[:8]+'..')
-                raise KeyError('%s do not exist' % i)
+            except (KeyError, AttributeError):
+                print(str(self.dts)[:32]+'..')
+                raise KeyError('%s do not exist, something wrong with this request.' % i)
 
     def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False, rty=3):
         """
