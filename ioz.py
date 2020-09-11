@@ -457,7 +457,7 @@ class lclMixin(ioBsc):
             prc_txt_writer.close()
             print("info: success input dts to txt %s." % str(self.lcn.values()))
 
-    def lcl_xpt(self, *, typ='w', sep=2, cvr=True, ndx=False, prm='sheet1'):
+    def lcl_xpt(self, *, typ='w', sep=2, cvr=True, ndx=False, prm='sheet1', fld=None, fls=None):
         """
         local exporting, type in lcn['fls']
         :param typ: exporting type in ['w','a'] if lcn['fls'] in ['.js','.txt'], default 'w' means cover the old file
@@ -465,15 +465,20 @@ class lclMixin(ioBsc):
         :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
         :param ndx: remain index in the first line if lcn['fls'] in ['.xlsx'], default False
         :param prm: if typ='a' and fls in type '.xlsx', continue to write the excel, use prm to define the sheet name
+        :param fld: default None, use self.lcn['fld']
+        :param fls: default None, use self.lcn['fls']
         :return: None
         """
-        fls = self.lcn['fls'][0] if type(self.lcn['fls']) in [list] else self.lcn['fls']
+        if fld is None:
+            fld = self.lcn['fld']
+        if fls is None:
+            fls = self.lcn['fls'][0] if type(self.lcn['fls']) in [list] else self.lcn['fls']
         if fls.rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
-            self.dts.to_excel(os_join(self.lcn['fld'], fls), sheet_name=prm, index=ndx)
+            self.dts.to_excel(os_join(fld, fls), sheet_name=prm, index=ndx)
         elif fls.rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
-            writer = ExcelWriter(os_join(self.lcn['fld'], fls), engine='openpyxl')
+            writer = ExcelWriter(os_join(fld, fls), engine='openpyxl')
             try:
-                book = load_workbook(os_join(self.lcn['fld'], fls))     # 尝试保存已有的文件内容
+                book = load_workbook(os_join(fld, fls))     # 尝试保存已有的文件内容
                 writer.book = book
             except FileNotFoundError:
                 pass
@@ -481,7 +486,7 @@ class lclMixin(ioBsc):
             writer.save()
             writer.close()
         elif fls.rsplit('.')[1] in ['csv']:
-            self.dts.to_csv(os_join(self.lcn['fld'], fls), encoding='UTF-8_sig')    # 不明原因的解码方式
+            self.dts.to_csv(os_join(fld, fls), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif fls.rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
         else:
@@ -605,17 +610,22 @@ class mngMixin(ioBsc):
         import data from mongodb to RAM.
         @param dct_qry: a dict of query
         @param lst_clm: default not import _id
-        @param prm: if prm in ['one'], find one document from the collection
-        @param spr:
-        @param rtn:
+        @param prm: if prm in ['one'], find one document from the collection; if prm in ['dtf'], change self.dts to dtf
+        @param spr: up to self, default False
+        @param rtn: return the result or not, default False
         @return:
         """
         dct_qry = {} if not dct_qry else dct_qry
         dct_clm = {'_id': 0}
         if lst_clm is not None:
             dct_clm.update(dcz().typ_to_dct(lst_clm, 1, rtn=True))
-        prc_find = self._myCln.find(dct_qry, dct_clm) if prm is None else [self._myCln.find_one(dct_qry, dct_clm)]
+        if prm in ['one', 'One', 'o']:
+            prc_find = [self._myCln.find_one(dct_qry, dct_clm)]
+        else:
+            prc_find = self._myCln.find(dct_qry, dct_clm)
         self.dts = [dct_xpt for dct_xpt in prc_find] if prc_find not in [None, [None]] else []
+        if prm in ['dtf', 'dataframe']:
+            self.typ_to_dtf()
         if spr:
             self.spr_nit()
         if rtn:
@@ -828,6 +838,7 @@ class apiMixin(ioBsc):
                 bch += 1
         if ipp_prx:
             self.lcn['prx'] = {htp: ipp_prx}
+            self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 在更新proxy的同时更换请求头
 
     def _pi_ipl(self, url="http://icanhazip.com/"):
         """
