@@ -17,7 +17,7 @@ from os import listdir
 from tempfile import gettempdir                                         # 用于搜索fakeuseragent本地temp
 from os.path import exists, join as os_join
 from openpyxl import load_workbook                                      # 保存已有的excel文件中的表
-from fake_useragent import UserAgent, VERSION as fku_version, FakeUserAgentError
+from fake_useragent import UserAgent, FakeUserAgentError, VERSION as fku_version
 # from socket import getfqdn, gethostname                               # 获得本机IP
 from telnetlib import Telnet                                            # 代理ip有效性检测的第二种方法
 from pymongo import MongoClient
@@ -382,23 +382,21 @@ class lclMixin(ioBsc):
     def mpt_txt(self, fld=None, fls=None, *, spr=False, rtn=False):
         """
         import txt from folds into RAM
-        :param fld:
-        :param fls:
+        :param fld: target fold
+        :param fls: target file
         :param spr:
         :param rtn:
         :return:
         """
-        # fld = self.lcn['fld'] if fld is None else fld
-        # fls = self.lcn['fls'] if fls is None else fls
-        # if spr:
-        #     self.spr_nit()
-        # if rtn:
-        #     return self.dts
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
         fls = fls[0] if type(fls) in [list] else fls
         with open(os_join(fld, fls), mode='r', encoding='utf-8') as act:
             self.dts = act.readlines()  # 读出的为列表
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
     def lcl_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
         """
@@ -412,7 +410,7 @@ class lclMixin(ioBsc):
         """
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
             self.lcn = {'fls': [self.lcn['fls']]}
-        dtf_mrg = pd_DataFrame() if self.dts in [None,[]] else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
+        dtf_mrg = pd_DataFrame() if self.dts in [None, []] else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
         for i_fls in self.lcn['fls']:
             if i_fls.rsplit('.')[1] in ['csv']:
                 self.mpt_csv(fls=i_fls, sep=sep)
@@ -431,6 +429,8 @@ class lclMixin(ioBsc):
     def xpt_txt(self, fld=None, fls=None, *, typ='w', sep=2, cvr=True):
         """
         import dataset to file.txt or file.js(https://blog.csdn.net/matrix_google/article/details/76861485).
+        :param fld: fold location
+        :param fls: files name
         :param typ: type of open, usually in ['a','w'], a for continue, w for cover
         :param sep: cut how many units in the head and tail of each row, default 2 to be compatible with echarts
         :param cvr: check if the pth_txt is already exists or not, False means if it exists, then do nothing
@@ -449,9 +449,9 @@ class lclMixin(ioBsc):
                 lst_dts_mpt = [str(i_dcm) for i_dcm in self.dts]
             else:  # alter the type of a line in dataframe from slice to str
                 lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self.dts.to_dict(orient='split')['data']]
-            prc_txt_writer = open(os_join(self.lcn['fld'], fls), typ, encoding='utf-8')
+            prc_txt_writer = open(os_join(fld, fls), typ, encoding='utf-8')
             for i in range(len(self.dts)):
-                if typ in ['a','A']:
+                if typ in ['a', 'A']:
                     prc_txt_writer.write('\n')
                 prc_txt_writer.writelines(lst_dts_mpt[i])
             prc_txt_writer.close()
@@ -914,7 +914,7 @@ class apiMixin(ioBsc):
         self.api_prx(frc=frc)       # 初始化更新proxy, 仅用于处理prx='auto'的情况
         prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
         while prc and bch <= rty:
-        # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
+            # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
             try:
                 mdl_rqt = post(
                     self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
@@ -954,7 +954,7 @@ class apiMixin(ioBsc):
         :return:
         """
         if lst_kys:
-            lst_kys = lsz(lst_kys).typ_to_lst(rtn=True)
+            lst_kys, i = lsz(lst_kys).typ_to_lst(rtn=True), 'initiation'
             try:
                 for i in lst_kys:
                     self.dts = self.dts[i]

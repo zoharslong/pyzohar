@@ -895,6 +895,7 @@ class dtz(object):
         '20w17'
         :param str_kwd: in ['W','w','M','m'] for ['%Yw%w','%yw%w','%Ym%m','%ym%m']
         :param rtn: return or not
+        :param prn: print or not, default True
         :return: result in format ['%Ym%m','%Yw%w']
         """
         if self.typ not in [dt_datetime]:

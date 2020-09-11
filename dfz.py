@@ -231,7 +231,7 @@ class clmMixin(dfBsc):
         """
         dtf_dtl = DataFrame([])
         for i in range(self.len):
-            self.dts[str_clm][i] = loads(self.dts[str_clm][i].replace("'",'"')) if \
+            self.dts[str_clm][i] = loads(self.dts[str_clm][i].replace("'", '"')) if \
                 type(self.dts[str_clm][i]) in [str] else self.dts[str_clm][i]
             len_tmp = len(self.dts[str_clm][i]) if type(self.dts[str_clm][i]) is list else 1  # 兼容{}, [{},{}]两种输入
             dtf_i = DataFrame(self.dts[str_clm][i], index=[int(i)]*len_tmp)
@@ -327,7 +327,6 @@ class clmMixin(dfBsc):
         else:
             raise AttributeError('stop: edge of the category is not available.')
         # 构建分箱规则列表
-        lst_bns = [flt_min]
         flt_cts = (flt_max - flt_min) / ctg_num
         if prm is 'num':        # option: 确定分箱数量
             lst_bns = [flt_min] + [flt_min+(i+1)*flt_cts for i in range(int(ctg_num))]
@@ -1212,9 +1211,10 @@ class pltMixin(cllMixin):
         1  1  a  110      0.0
         2  1  c  120      1.0
         :param args: ([columns for normalization],[new columns name])
-        :param prm: list of columns to group by
         :param spr: let self = self.dts
         :param rtn: default False, return None
+        :param prm: list of columns to group by
+        :param ltr: 如果某个值过大, 则修正为三倍标准差, 默认False
         :return: None
         """
         dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
@@ -1224,7 +1224,7 @@ class pltMixin(cllMixin):
         if prm is None:
             self.dts['_grb'] = 1
             self.dts_nit()
-            self.srt_clm('_grb',drp=False)
+            self.srt_clm('_grb', drp=False)
         lst_grb = lsz(prm).typ_to_lst(rtn=True) if prm else [list(self.clm)[0]]     # 用于分组的列
         # 计算分组的均值, 此处使用中位数
         avg = dfz(self.dts.copy())
@@ -1242,16 +1242,16 @@ class pltMixin(cllMixin):
                 self.dts[lst_clm[i]] = self.dts.apply(
                     lambda x: x['_'+lst_clm[i]+'_avg'] + 3*x['_'+lst_clm[i]+'_std'] if
                     x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg'] > 3*x['_'+lst_clm[i]+'_std'] else
-                    x[lst_clm[i]] , axis=1
+                    x[lst_clm[i]], axis=1
                 )
                 self.dts[lst_clm[i]] = self.dts.apply(
                     lambda x: x['_'+lst_clm[i]+'_avg'] - 3*x['_'+lst_clm[i]+'_std'] if
                     x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg'] < -3*x['_'+lst_clm[i]+'_std'] else
-                    x[lst_clm[i]] , axis=1
+                    x[lst_clm[i]], axis=1
                 )
         for i in range(len(lst_clm)):
             self.dts[lst_new[i]] = self.dts.apply(
-                lambda x: round((x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg']) / x['_'+lst_clm[i]+'_std'],6), axis=1
+                lambda x: round((x[lst_clm[i]] - x['_'+lst_clm[i]+'_avg']) / x['_'+lst_clm[i]+'_std'], 6), axis=1
             )
         self.dts_nit()
         self.drp_clm(['_grb'])

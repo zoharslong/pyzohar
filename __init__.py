@@ -7,8 +7,6 @@ Created on Fri Mar 22 16:30:38 2019
 from platform import system as chk_sys
 
 __VERSION__ = '0.0.1'
-
-global chk_sys
 chk_sys = chk_sys()
 if __name__ == '__main__':
     print('info: running as a new program.')
