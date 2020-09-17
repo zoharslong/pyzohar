@@ -601,10 +601,12 @@ class dcmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def drp_dcm(self, lst_ndx, *, spr=False, rtn=False):
+    def drp_dcm(self, lst_ndx, *, spr=False, rtn=False, prm='drop', ndx_rst=True):
         """
         drop documents by index numbers.
         :param lst_ndx: a list of index
+        :param prm: in ['drop','keep'], default 'drop'
+        :param ndx_rst: 是否重置self.dts的index, default True
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :return: if rtn is True, return self.dts
@@ -613,7 +615,9 @@ class dcmMixin(dfBsc):
             pass
         else:
             lst_ndx = lsz(lst_ndx).typ_to_lst(rtn=True)
-            self.dts = self.dts.drop(lst_ndx, axis=0)
+            if prm in ['keep','kep','k']:  # 当方法选择为keep时, 保留指定index的行
+                lst_ndx = lsz().mrg('differ', list(self.dts.index), lst_ndx, rtn=True)
+            self.set_dts(self.dts.drop(lst_ndx, axis=0), ndx_rst=ndx_rst)
         if spr:
             self.spr_nit()
         if rtn:
@@ -687,7 +691,7 @@ class dcmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def drp_dcm_ctt(self, *args, spr=False, rtn=False, prm='drop'):
+    def drp_dcm_ctt(self, *args, spr=False, rtn=False, prm='drop', ndx_rst=True):
         """
         drop documents for contents.
         >>> tst = dfz([{'A':'a','B':'1'},{'A':'b','B':'2'},{'A':'c','B':'3'},{'A':'d','B':'4'},])
@@ -698,29 +702,32 @@ class dcmMixin(dfBsc):
         :param args: ({columns:[content,..]}) or ([column,..],[[content,..],..])
         :param spr: let self = self.dts
         :param rtn: default False, return None
-        :param prm: in [(True,'drop'),(False,'keep'),'partDrop','partKeep'], default True for dropping documents.
+        :param prm: in [(True,'drop'),(False,'keep'),'partDrop','partKeep'], default True for dropping documents
+        :param ndx_rst: 是否重置self.dts的index, default True
         :return: if rtn is True, return self.dts
         """
         lst_rgs = lsz(args).rgs_to_typ(rtn=True)
         lst_clm, lst_ctt = lsz(lst_rgs[0], lst=True), lsz(lst_rgs[1], lst=True)
         if lst_clm.len == 1 and type(lst_ctt[0]) not in [list, lsz]:
-            lst_ctt = lsz([lst_ctt.seq])            # 当仅检查单列时，需要控制其待识别内容为唯一个列表
+            lst_ctt = lsz([lst_ctt.seq])                    # 当仅检查单列时，需要控制其待识别内容为唯一个列表
         lst_clm.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).len_max, spr=True)
         lst_ctt.cpy_tal(lsz([lst_clm.seq, lst_ctt.seq]).len_max, spr=True)
         for i in range(len(lst_clm)):
-            if prm is False or prm in ['keep', 'kep']:   # 当not drop 或prm='keep'时，保留完全匹配的行
-                self.dts = self.dts.loc[self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
+            if prm is False or prm in ['keep', 'kep']:      # 当not drop 或prm='keep'时，保留完全匹配的行
+                self.set_dts(self.dts.loc[self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :],
+                             ndx_rst=ndx_rst)
             elif prm is True or prm in ['drop', 'drp']:     # 当drop 或prm='drop'时，删除完全匹配的行
-                self.dts = self.dts.loc[~self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :]
+                self.set_dts(self.dts.loc[~self.dts[lst_clm[i]].isin(lsz(lst_ctt[i]).typ_to_lst(rtn=True)), :],
+                             ndx_rst=ndx_rst)
             elif prm.lower() in ['partdrop', 'droppart', 'prtdrp', 'drpprt']:   # 当prm='partDrop'时，删除正则匹配的行
                 lst_ndx = [k for j in lst_ctt[i] for k in self.dts.index if
                            re_search(j, str(self.dts.loc[k, lst_clm[i]]))]
-                self.dts = self.dts.drop(lst_ndx, axis=0)
+                self.set_dts(self.dts.drop(lst_ndx, axis=0), ndx_rst=ndx_rst)
             elif prm.lower() in ['partkeep', 'keeppart', 'prtkep', 'kepprt']:   # 当prm='partKeep'时，保留正则匹配的行
                 lst_ndx = [k for j in lst_ctt[i] for k in self.dts.index if
                            re_search(j, str(self.dts.loc[k, lst_clm[i]]))]
                 lst_ndx = [i for i in self.dts.index if i not in lst_ndx]
-                self.dts = self.dts.drop(lst_ndx, axis=0)
+                self.set_dts(self.dts.drop(lst_ndx, axis=0), ndx_rst=ndx_rst)
         if spr:
             self.spr_nit()
         if rtn:

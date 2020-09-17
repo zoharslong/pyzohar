@@ -156,8 +156,6 @@ class ioBsc(pd_DataFrame):
                 self.__lcn = lcn
             elif type(lcn) in [dict]:   # 当self.__lcn中已有值时, 使用lcn对其进行更新
                 self.__lcn.update(lcn)  # 使用update更新self.__lcn, 要求self.__lcn必为dict类型
-                # for ikey in lcn.keys():
-                #     self.__lcn[ikey] = lcn[ikey]
             self.__attr_rst('lcn')
         else:
             raise TypeError('info: lcn\'s type %s is not available.' % type(lcn))
@@ -605,31 +603,36 @@ class mngMixin(ioBsc):
         if prc_update_many.raw_result['updatedExisting']:
             return prc_update_many.raw_result
 
-    def mng_mpt(self, dct_qry=None, lst_clm=None, *, prm=None, spr=False, rtn=False):
+    def mng_mpt(self, dct_qry=None, lst_clm=None, *, prm='', spr=False, rtn=False):
         """
         import data from mongodb to RAM.
-        @param dct_qry: a dict of query
-        @param lst_clm: default not import _id
-        @param prm: if prm in ['one'], find one document from the collection; if prm in ['dtf'], change self.dts to dtf
-        @param spr: up to self, default False
-        @param rtn: return the result or not, default False
-        @return:
+        :param dct_qry: a dict of query
+        :param lst_clm: default not import _id
+        :param prm: match 'onepiprcrdtf' for find_one, aggregate, return recuration, return dataframe
+        :param spr: up to self, default False
+        :param rtn: return the result or not, default False
+        :return: None
         """
         dct_qry = {} if not dct_qry else dct_qry
         dct_clm = {'_id': 0}
         if lst_clm is not None:
             dct_clm.update(dcz().typ_to_dct(lst_clm, 1, rtn=True))
-        if prm in ['one', 'One', 'o']:
+        if re_find('one', prm):
             prc_find = [self._myCln.find_one(dct_qry, dct_clm)]
+        elif re_find('pip', prm):
+            prc_find = self._myCln.aggregate(dct_qry)
         else:
             prc_find = self._myCln.find(dct_qry, dct_clm)
-        self.dts = [dct_xpt for dct_xpt in prc_find] if prc_find not in [None, [None]] else []
-        if prm in ['dtf', 'dataframe']:
-            self.typ_to_dtf()
-        if spr:
-            self.spr_nit()
-        if rtn:
-            return self.dts
+        if re_find('rcr', prm):     # prm in ['rcr']直接返回迭代器
+            return prc_find
+        else:                       # 否则将全部documents解出存放再self.dts中
+            self.dts = [dct_xpt for dct_xpt in prc_find] if prc_find not in [None, [None]] else []
+            if prm in ['dtf', 'dataframe']:
+                self.typ_to_dtf()
+            if spr:
+                self.spr_nit()
+            if rtn:
+                return self.dts
 
     def xpt_cln_dcm(self, dts_mpt, lst_ndx=None, cvr=True, rtn=False):
         """
@@ -866,6 +869,8 @@ class apiMixin(ioBsc):
     def _pi_prx_chk(self):
         """
         API: if proxies is alright, return True, else return False.
+        >>> Telnet('116.22.50.144', '4526', timeout=2)
+        <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
         :return: True or False for a good proxy
         """
         if self.lcn['prx'] in [None, 'auto']:
