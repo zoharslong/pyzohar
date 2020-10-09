@@ -31,7 +31,7 @@ from requests.adapters import ProxyError
 from requests import post, get
 from re import findall as re_find
 from json import loads, JSONDecodeError
-from .bsz import stz, lsz, dcz
+from .bsz import stz, lsz, dcz, dtz
 
 
 class ioBsc(pd_DataFrame):
@@ -408,7 +408,7 @@ class lclMixin(ioBsc):
         """
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
             self.lcn = {'fls': [self.lcn['fls']]}
-        dtf_mrg = pd_DataFrame() if self.dts in [None, []] else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
+        dtf_mrg = pd_DataFrame() if self.dts is None or self.dts is [] else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
         for i_fls in self.lcn['fls']:
             if i_fls.rsplit('.')[1] in ['csv']:
                 self.mpt_csv(fls=i_fls, sep=sep)
@@ -841,7 +841,19 @@ class apiMixin(ioBsc):
                 bch += 1
         if ipp_prx:
             self.lcn['prx'] = {htp: ipp_prx}
-            self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 在更新proxy的同时更换请求头
+            self.lcn['prx_tim'] = dtz('now').typ_to_dtt(rtn=True)                       # 定时更换proxy的时间戳
+            self.lcn['hdr'] = {
+                'Accept': 'text/html, application/xhtml+xml, application/xml; q=0.9, */*; q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'zh-Hans-CN, zh-Hans; q=0.5',
+                'Cache-Control': 'max-age=0',
+                'Connection': 'Keep-Alive',
+                'Host': '',
+                'Refer': '',
+                'Upgrade-Insecure-Requests': '1',
+                'User-Agent': UserAgent(use_cache_server=False).random
+            }  # 在更新proxy的同时更换请求头
+
 
     def _pi_ipl(self, url="http://icanhazip.com/"):
         """
@@ -875,18 +887,19 @@ class apiMixin(ioBsc):
         """
         if self.lcn['prx'] in [None, 'auto']:
             return False
-        # elif re_find(self._pi_ipl(), self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
-        #     return True     # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
+        elif re_find(self._pi_ipl(), self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
+            return True     # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
         else:
-            try:
-                if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
-                          re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
-                          timeout=30):  # 使用telnet验证代理效果
-                    return True
-            except TimeoutError:
-                return False
+            return False
+            # try:
+            #     if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+            #               re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+            #               timeout=30):  # 使用telnet验证代理效果
+            #         return True
+            # except TimeoutError:
+            #     return False
 
-    def api_prx(self, prm='http', frc=False, rty=2):
+    def api_prx(self, prm='http', frc=False, rty=5):
         """
         当self.lcn.prx代理不为空, 即采用代理时, 调用代理是否有效的检查，若无效则更新代理, 更新五次失败则报错
         :param frc: forced refresh, default False means not refresh if ip test is passed
@@ -917,6 +930,8 @@ class apiMixin(ioBsc):
         :return:
         """
         self.api_prx(frc=frc)       # 初始化更新proxy, 仅用于处理prx='auto'的情况
+        if 'prx_tim' in self.lcn.keys() and (dtz('now').typ_to_dtt(rtn=True) - self.lcn['prx_tim']).seconds>360:
+            self.api_prx(frc=True)  # 根据时间戳进行proxy切换
         prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
         while prc and bch <= rty:
             # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
