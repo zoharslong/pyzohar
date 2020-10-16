@@ -28,8 +28,9 @@ from urllib3.response import ProtocolError
 from urllib3.connection import NewConnectionError
 from requests.models import ChunkedEncodingError
 from requests.adapters import ProxyError
-from requests import post, get
+from requests import post, get, TooManyRedirects, ReadTimeout
 from re import findall as re_find
+from random import randint
 from json import loads, JSONDecodeError
 from .bsz import stz, lsz, dcz, dtz
 
@@ -190,16 +191,17 @@ class ioBsc(pd_DataFrame):
         API initiate. needs self.lcn={'url'/'url_lst'/'url_ctt','pst','hdr','prx','prm'}
         :return:
         """
+        # 检查本地fakeUserAgent文件是否存在, 若否则自动创建
+        if 'fake_useragent_' + fku_version + '.json' not in listdir(gettempdir()):
+            fku = get('https://fake-useragent.herokuapp.com/browsers/' + fku_version, timeout=180)
+            with open(os_join(gettempdir(), 'fake_useragent_' + fku_version + '.json'), "w") as wrt:
+                wrt.write(fku.text)
         if 'pst' not in self.lcn.keys():
             self.lcn['pst'] = None      # post请求中在请求data中发送的参数数据
         if 'hdr' not in self.lcn.keys():
-            try:
-                self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 若未指定请求头就现编一个简直可怕
-            except (TimeoutError, FakeUserAgentError):
-                if 'fake_useragent_'+fku_version+'.json' not in listdir(gettempdir()):
-                    fku = get('https://fake-useragent.herokuapp.com/browsers/'+fku_version, timeout=180)
-                    with open(os_join(gettempdir(), 'fake_useragent_'+fku_version+'.json'), "w") as wrt:
-                        wrt.write(fku.text)
+            self.lcn['hdr'] = {'User-Agent': UserAgent(use_cache_server=False).random}  # 若未指定请求头就现编一个简直可怕
+        else:
+            self.lcn['hdr'].update({'User-Agent': UserAgent(use_cache_server=False).random})  # 若制定了则自动刷新一次假头
         if 'prx' not in self.lcn.keys():
             self.lcn['prx'] = None      # 是否调用代理
         if 'prm' not in self.lcn.keys():
@@ -408,7 +410,12 @@ class lclMixin(ioBsc):
         """
         if type(self.lcn['fls']) is str:    # 对可能存在的'fls'对多个文件的情况进行统一
             self.lcn = {'fls': [self.lcn['fls']]}
-        dtf_mrg = pd_DataFrame() if self.dts is None or self.dts is [] else self.dts  # 初始化数据框存放多个文件, 若self.dts有值则要求为数据框
+        if type(self.dts) in [typ_pd_DataFrame] and self.len == 0:
+            dtf_mrg = pd_DataFrame()
+        elif self.dts in [None, []]:
+            dtf_mrg = pd_DataFrame()
+        else:
+            dtf_mrg = self.dts.copy()
         for i_fls in self.lcn['fls']:
             if i_fls.rsplit('.')[1] in ['csv']:
                 self.mpt_csv(fls=i_fls, sep=sep)
@@ -782,7 +789,7 @@ class apiMixin(ioBsc):
 
     def _pi_prx_jgw(self, prm='http', rty=3):
         """
-        get proxy from jiguang api. 从极光代理获取一个代理ip地址.
+        get proxy from jiguang api. 从极光代理获取一个代理ip地址, 同时使用self.lcn['prx_tim']记录这个代理的获取时间
         from http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :param prm: in ['http', 'https']
         :param rty: retry times, default 3
@@ -841,19 +848,8 @@ class apiMixin(ioBsc):
                 bch += 1
         if ipp_prx:
             self.lcn['prx'] = {htp: ipp_prx}
-            self.lcn['prx_tim'] = dtz('now').typ_to_dtt(rtn=True)                       # 定时更换proxy的时间戳
-            self.lcn['hdr'] = {
-                'Accept': 'text/html, application/xhtml+xml, application/xml; q=0.9, */*; q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Accept-Language': 'zh-Hans-CN, zh-Hans; q=0.5',
-                'Cache-Control': 'max-age=0',
-                'Connection': 'Keep-Alive',
-                'Host': '',
-                'Refer': '',
-                'Upgrade-Insecure-Requests': '1',
-                'User-Agent': UserAgent(use_cache_server=False).random
-            }  # 在更新proxy的同时更换请求头
-
+            self.lcn['prx_tim'] = dtz('now').typ_to_dtt(rtn=True)                               # 定时更换proxy的时间戳
+            self.lcn['hdr'].update({'User-Agent': UserAgent(use_cache_server=False).random})    # 在更新proxy的同时更换头
 
     def _pi_ipl(self, url="http://icanhazip.com/"):
         """
@@ -875,7 +871,7 @@ class apiMixin(ioBsc):
                 return 'stop: 502 - connection timed out.'
             else:
                 return mdl_rqt
-        except (MaxRetryError, NewConnectionError, ConnectionResetError, ProxyError):
+        except (MaxRetryError, NewConnectionError, ConnectionResetError, ProxyError, ReadTimeout):
             return 'stop: MaxRetryError/NewConnectionError.'
 
     def _pi_prx_chk(self):
@@ -929,8 +925,9 @@ class apiMixin(ioBsc):
         :param rty: retry, if the result is not available, define retry times, default 3.
         :return:
         """
-        self.api_prx(frc=frc)       # 初始化更新proxy, 仅用于处理prx='auto'的情况
-        if 'prx_tim' in self.lcn.keys() and (dtz('now').typ_to_dtt(rtn=True) - self.lcn['prx_tim']).seconds>360:
+        self.api_prx(frc=frc)           # 初始化更新proxy, 仅用于处理prx='auto'的情况
+        int_rnd = randint(0,20) + 50   # proxy自动更新, 需要依赖self.lcn['prx_tim'], 设定自动更新间隔为120s
+        if 'prx_tim' in self.lcn.keys() and (dtz('now').typ_to_dtt(rtn=True) - self.lcn['prx_tim']).seconds>int_rnd:
             self.api_prx(frc=True)  # 根据时间戳进行proxy切换
         prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
         while prc and bch <= rty:
@@ -948,7 +945,7 @@ class apiMixin(ioBsc):
                     prc = False             # 当不使用代理或网页返回了信息时, 不进行循环
                 else:
                     self.api_prx(frc=frc)   # 其他情况酌情更新代理
-            except (ProtocolError, ChunkedEncodingError):   # proxy ip timeout, change proxy
+            except (ProtocolError, ChunkedEncodingError, TooManyRedirects):   # proxy ip timeout, change proxy
                 self.api_prx(frc=frc)
             finally:
                 bch += 1
