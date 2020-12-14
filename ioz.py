@@ -883,8 +883,9 @@ class apiMixin(ioBsc):
         """
         if self.lcn['prx'] in [None, 'auto']:
             return False
-        elif re_find(self._pi_ipl(), self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
-            return True     # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
+        rsp = self._pi_ipl()    # 可能返回字符串, <respons401> 等，因此此处做字符串识别限定
+        if type(rsp) in [str] and re_find(rsp, self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
+            return True         # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
         else:
             return False
             # try:
