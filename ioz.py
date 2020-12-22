@@ -19,7 +19,7 @@ from os.path import exists, join as os_join
 from openpyxl import load_workbook                                      # 保存已有的excel文件中的表
 from fake_useragent import UserAgent, FakeUserAgentError, VERSION as fku_version
 # from socket import getfqdn, gethostname                               # 获得本机IP
-from telnetlib import Telnet                                            # 代理ip有效性检测的第二种方法
+# from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
@@ -879,22 +879,25 @@ class apiMixin(ioBsc):
         API: if proxies is alright, return True, else return False.
         >>> Telnet('116.22.50.144', '4526', timeout=2)
         <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
+        >>> # 如上方法的脚本示例
+        >>> try:
+        >>>     if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+        >>>               re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+        >>>               timeout=30):  # 使用telnet验证代理效果
+        >>>         return True
+        >>> except TimeoutError:
+        >>>     return False
         :return: True or False for a good proxy
         """
         if self.lcn['prx'] in [None, 'auto']:
             return False
-        rsp = self._pi_ipl()    # 可能返回字符串, <respons401> 等，因此此处做字符串识别限定
-        if type(rsp) in [str] and re_find(rsp, self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
-            return True         # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
+        rsp = self._pi_ipl()        # 可能返回字符串, <respons401> 等
+        if type(rsp) not in [str]:  # 非字符串默认无效
+            return False
+        elif re_find(rsp, self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
+            return True             # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
         else:
             return False
-            # try:
-            #     if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
-            #               re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
-            #               timeout=30):  # 使用telnet验证代理效果
-            #         return True
-            # except TimeoutError:
-            #     return False
 
     def api_prx(self, prm='http', frc=False, rty=5):
         """
@@ -905,12 +908,14 @@ class apiMixin(ioBsc):
         :return:
         """
         if self.lcn['prx']:
+            bch, dtz_now = 0, dtz('now').typ_to_dtt(rtn=True)
             if frc:
                 self._pi_prx_jgw(prm=prm)       # 强制更新一次proxy
-            bch = 0
+            elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0,20) + 50:
+                self._pi_prx_jgw(prm=prm)       # 原代理超时后强制更新一次proxy
             while not self._pi_prx_chk() and bch <= rty:
                 if bch == rty:
-                    raise AttributeError('stop: max retry, cannot pass proxy test for 3 times.')
+                    raise AttributeError('stop: max retry, cannot pass proxy test for %s times.'% str(rty))
                 self._pi_prx_jgw(prm=prm)
                 bch += 1
 
@@ -926,42 +931,42 @@ class apiMixin(ioBsc):
         :param rty: retry, if the result is not available, define retry times, default 3.
         :return:
         """
-        self.api_prx(frc=frc)           # 初始化更新proxy, 仅用于处理prx='auto'的情况
-        int_rnd = randint(0,20) + 50   # proxy自动更新, 需要依赖self.lcn['prx_tim'], 设定自动更新间隔为120s
-        if 'prx_tim' in self.lcn.keys() and (dtz('now').typ_to_dtt(rtn=True) - self.lcn['prx_tim']).seconds>int_rnd:
-            self.api_prx(frc=True)  # 根据时间戳进行proxy切换
-        prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
-        while prc and bch <= rty:
-            # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
-            try:
-                mdl_rqt = post(
-                    self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
-                    headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
-                ) if prm.lower() in ['post', 'pst'] else get(
-                    self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
-                    headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
-                )                   # 针对POST/GET请求, 分别注意self.lcn.pst/self.lcn/prm参数
-                mdl_rqt.encoding = "utf-8"
-                if mdl_rqt.status_code in [200]:
-                    prc = False             # 当不使用代理或网页返回了信息时, 不进行循环
-                else:
-                    self.api_prx(frc=frc)   # 其他情况酌情更新代理
-            except (ProtocolError, ChunkedEncodingError, TooManyRedirects):   # proxy ip timeout, change proxy
-                self.api_prx(frc=frc)
-            finally:
-                bch += 1
-                if bch == rty-1:
-                    self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
-                    print('info: max batches, proxy forces switch.')
-        # 请求阶段结束, 进入API结果的装载阶段
-        try:                                # 优先尝试js解码
-            self.dts = loads(mdl_rqt.text)
-        except JSONDecodeError:             # 若js解码失败则直接装载self.dts
-            self.dts = mdl_rqt.text
-        if spr:
-            self.spr_nit()
-        if rtn:
-            return self.dts
+        if 'url' not in self.lcn.keys():
+            raise KeyError('stop: url not exist.')
+        else:
+            self.api_prx(frc=frc)           # 初始化更新proxy, 仅用于处理prx='auto'的情况
+            prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
+            while prc and bch <= rty:
+                # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
+                try:
+                    mdl_rqt = post(
+                        self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
+                        headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
+                    ) if prm.lower() in ['post', 'pst'] else get(
+                        self.lcn['url'], params=self.lcn['prm'], data=self.lcn['pst'],
+                        headers=self.lcn['hdr'], proxies=self.lcn['prx'], timeout=300
+                    )                   # 针对POST/GET请求, 分别注意self.lcn.pst/self.lcn/prm参数
+                    mdl_rqt.encoding = "utf-8"
+                    if mdl_rqt.status_code in [200]:
+                        prc = False             # 当不使用代理或网页返回了信息时, 不进行循环
+                    else:
+                        self.api_prx(frc=frc)   # 其他情况酌情更新代理
+                except (ProtocolError, ChunkedEncodingError, TooManyRedirects):   # proxy ip timeout, change proxy
+                    self.api_prx(frc=frc)
+                finally:
+                    bch += 1
+                    if bch == rty:
+                        self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
+                        print('info: max batches, proxy forces switch.')
+            # 请求阶段结束, 进入API结果的装载阶段
+            try:                                # 优先尝试js解码
+                self.dts = loads(mdl_rqt.text)
+            except JSONDecodeError:             # 若js解码失败则直接装载self.dts
+                self.dts = mdl_rqt.text
+            if spr:
+                self.spr_nit()
+            if rtn:
+                return self.dts
 
     def get_vls(self, lst_kys=None, *, spr=False, rtn=False):
         """
