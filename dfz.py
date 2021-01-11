@@ -485,7 +485,7 @@ class clmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def ltr_clm_typ(self, *args, spr=False, rtn=False):
+    def ltr_clm_typ(self, *args, spr=False, rtn=False, prm=False):
         """
         alter columns' data type.
         >>> tst = clmMixin([{'A':1,'B':'a'},{'A':2,'B': 3},{'A':'', 'B':None}])
@@ -496,12 +496,17 @@ class clmMixin(dfBsc):
         0  1.0  a
         1  2.0  3
         2  NaN
+        >>> tst.ltr_clm_typ({'C':float}, prm=True) # 若不确定args column name是否存在仍要求不报错，则设定prm=True
         :param args: ({columns: types}) or ([columns],[types]), types in [str, float, int]
         :param spr: let self = self.dts
         :param rtn: default False, return None
+        :param prm: check if target column names is in self.clm or not, default False means not check
         :return: if rtn is True, return self.dts
         """
         dct_typ = lsz(args).rgs_to_typ(prm='dct', rtn=True)                # args转字典
+        if prm:     # 当prm==True时, 自动排除*args[0]中不存在于self.clm中的列名以避免报错
+            for j in [i for i in dct_typ.keys() if i not in self.clm]:
+                dct_typ.pop(j)
         lst_flt = [i for i in dct_typ.keys() if dct_typ[i] in [int, 'int', float, 'float']]
         self.ltr_clm_rpc(lst_flt, ['NA', 'N/A', 'nan', 'null', 'None', None, ''], [np_nan])    # 转float列的空值处理
         self.dts = self.dts.astype(dct_typ)  # 核心转换

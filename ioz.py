@@ -778,8 +778,10 @@ class apiMixin(ioBsc):
     >>> self = ioz(lcn={
     >>>     'mdb':'db_tst','cln':'cl_cld',
     >>>     'url':"http://haixfsz.centaline.com.cn/service/postda",
+    >>>     'api_typ': 'post'  # 用于制定调用接口的http方法, 默认post, 也可以于此处指定或在self.api_run(prm='post')指定
     >>>     'pst':{'uid':'haixf**', 'pwd':'**.***$', 'key':'requestCCESdeallog',
-    >>>            'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'}
+    >>>            'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'} # 用于post方法传参
+    >>>     ‘prm’:{}  # 用于get方法传参
     >>> })
     >>> self.api_run()  # 从api导入数据
     >>> self.mng_xpt()  # 将api数据导出到mongodb
@@ -911,7 +913,7 @@ class apiMixin(ioBsc):
             bch, dtz_now = 0, dtz('now').typ_to_dtt(rtn=True)
             if frc:
                 self._pi_prx_jgw(prm=prm)       # 强制更新一次proxy
-            elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0,20) + 50:
+            elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0,30) + 60:
                 self._pi_prx_jgw(prm=prm)       # 原代理超时后强制更新一次proxy
             while not self._pi_prx_chk() and bch <= rty:
                 if bch == rty:
@@ -936,6 +938,7 @@ class apiMixin(ioBsc):
         else:
             self.api_prx(frc=frc)           # 初始化更新proxy, 仅用于处理prx='auto'的情况
             prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
+            prm = self.lcn['url_htp'] if 'url_htp' in self.lcn.keys() else prm  # self.lcn优先
             while prc and bch <= rty:
                 # 满足本次请求的返回statusCode为200即请求成功, 或循环rty次失败
                 try:
@@ -951,11 +954,16 @@ class apiMixin(ioBsc):
                         prc = False             # 当不使用代理或网页返回了信息时, 不进行循环
                     else:
                         self.api_prx(frc=frc)   # 其他情况酌情更新代理
-                except (ProtocolError, ChunkedEncodingError, TooManyRedirects):   # proxy ip timeout, change proxy
+                except (
+                        ProtocolError, ChunkedEncodingError, TooManyRedirects,
+                        MaxRetryError, NewConnectionError,ConnectionError, TimeoutError
+                ):   # proxy ip timeout, change proxy
+                    print('info: ConectionError, retrying.')
+                    sleep(25+randint(0,5))
                     self.api_prx(frc=frc)
                 finally:
                     bch += 1
-                    if bch == rty:
+                    if bch == rty:              # 当不使用代理时，默认的rty=1
                         self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
                         print('info: max batches, proxy forces switch.')
             # 请求阶段结束, 进入API结果的装载阶段
