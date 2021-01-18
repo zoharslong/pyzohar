@@ -628,7 +628,7 @@ class dcmMixin(dfBsc):
         if rtn:
             return self.dts
 
-    def drp_dcm_na(self, lst_clm=None, *, spr=False, rtn=False, prm=None):
+    def drp_dcm_na(self, lst_clm=None, *, spr=False, rtn=False, prm=None, how='any'):
         """
         drop documents for na cells.
         >>> import pandas as pd
@@ -649,13 +649,14 @@ class dcmMixin(dfBsc):
         :param spr: let self = self.dts
         :param rtn: default False, return None
         :param prm:  remain documents at least <prm> cells not nan, default None
+        :param how: in ['any', 'all'] for [任意列存在nan则删除或保留, 全部指定列为nan才删除或保留]
         :return: if rtn is True, return self.dts
         """
         flt_trs = None if prm in ['keep', 'kep', 'kp'] else prm
         flt_bgn = self.len
         lst_clm = lsz(lst_clm).typ_to_lst(rtn=True) if prm in ['keep', 'kep', 'kp', None] else lst_clm
         dts_drp = self.dts.dropna(axis=0,           # 0 for index and 1 for columns
-                                  how='any',        # any and all
+                                  how=how,          # any and all
                                   thresh=flt_trs,   # optional Keep only the rows with at least 2 non-NA values
                                   subset=lst_clm)   # optional columns in target
         if prm in ['keep', 'kep', 'kp']:            # 当prm为'保留'时，反向删除不为空的行
