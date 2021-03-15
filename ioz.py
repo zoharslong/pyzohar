@@ -869,6 +869,8 @@ class apiMixin(ioBsc):
             mdl_rqt = get(url, proxies=self.lcn['prx'], timeout=180)
             if mdl_rqt.status_code == 200:
                 return mdl_rqt.text.replace('\n', '')
+            elif mdl_rqt.status_code in [402,403]:
+                return re_find("IP\<\/span>: ([0-9.]*?)<",mdl_rqt.text)[0]
             elif mdl_rqt.status_code == 502:
                 return 'stop: 502 - connection timed out.'
             else:
