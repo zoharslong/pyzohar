@@ -17,9 +17,7 @@ from os import listdir
 from tempfile import gettempdir                                         # 用于搜索fakeuseragent本地temp
 from os.path import exists, join as os_join
 from openpyxl import load_workbook                                      # 保存已有的excel文件中的表
-from fake_useragent import UserAgent, FakeUserAgentError, VERSION as fku_version
-# from socket import getfqdn, gethostname                               # 获得本机IP
-# from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
+from fake_useragent import UserAgent, VERSION as fku_version            # FakeUserAgentError,
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from pymysql import connect, IntegrityError
@@ -32,7 +30,10 @@ from requests import post, get, TooManyRedirects, ReadTimeout
 from re import findall as re_find
 from random import randint
 from json import loads, JSONDecodeError
-from .bsz import stz, lsz, dcz, dtz
+from pyzohar.bsz import stz, lsz, dcz, dtz
+from pyzohar.prv import dct_jgh
+# from socket import getfqdn, gethostname                               # 获得本机IP
+# from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
 
 
 class ioBsc(pd_DataFrame):
@@ -778,10 +779,10 @@ class apiMixin(ioBsc):
     >>> self = ioz(lcn={
     >>>     'mdb':'db_tst','cln':'cl_cld',
     >>>     'url':"http://haixfsz.centaline.com.cn/service/postda",
-    >>>     'api_typ': 'post'  # 用于制定调用接口的http方法, 默认post, 也可以于此处指定或在self.api_run(prm='post')指定
+    >>>     'api_typ': 'post',  # 用于制定调用接口的http方法, 默认post, 也可以于此处指定或在self.api_run(prm='post')指定
     >>>     'pst':{'uid':'haixf**', 'pwd':'**.***$', 'key':'requestCCESdeallog',
-    >>>            'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'} # 用于post方法传参
-    >>>     ‘prm’:{}  # 用于get方法传参
+    >>>            'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'}, # 用于post方法传参
+    >>>     'prm':{},  # 用于get方法传参
     >>> })
     >>> self.api_run()  # 从api导入数据
     >>> self.mng_xpt()  # 将api数据导出到mongodb
@@ -789,12 +790,13 @@ class apiMixin(ioBsc):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
-    def _pi_prx_jgw(self, prm='http', rty=3):
+    def _pi_prx_jgw(self, prm='http', rty=3, dct_wht=dct_jgh):
         """
         get proxy from jiguang api. 从极光代理获取一个代理ip地址, 同时使用self.lcn['prx_tim']记录这个代理的获取时间
         from http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :param prm: in ['http', 'https']
         :param rty: retry times, default 3
+        :param dct_wht: dct_jgh中为本人的代理账号
         :return: None
         """
         dct_jgw = {
@@ -835,11 +837,7 @@ class apiMixin(ioBsc):
             except (IndexError, KeyError):              # 当API未能返回有效格式的proxy时，尝试将当前机器IP添加白名单来解决这个问题
                 if dct_prx['code'] in [113, '113']:     # {"code":113,"data":[],"msg":"请添加白名单xxxx","success":false}
                     url_wht = 'http://webapi.jghttp.golangapi.com/index/index/save_white'
-                    dct_wht = {
-                        'neek': '18724',
-                        'appkey': '1fc131e1f4fd096f4722a5ed3ff66a45',
-                        'white': re_find('请添加白名单(.*$)', dct_prx['msg'])[0]
-                    }
+                    dct_wht.update({'white': re_find('请添加白名单(.*$)', dct_prx['msg'])[0]})
                     get(url_wht, params=dct_wht)
                     sleep(3)                            # 添加白名单的操作后需要等待2秒
                 elif dct_prx['code'] in [111, '111']:   # {"code":111,"data":[],"msg":"请2秒后再试","success":false}

@@ -21,8 +21,8 @@ pyzohar
 if __name__ == '__main__':
     print('info: running as a new program.')
 else:
-    __all__ = ['bsz', 'ioz', 'dfz', 'mdz']  # https://www.cnblogs.com/tp1226/p/8453854.html
     from pyzohar.bsz import lsz, dtz, dcz, stz
     from pyzohar.dfz import dfz
     from pyzohar.mdz import mdz
+    __all__ = ['stz', 'lsz', 'dcz', 'dtz', 'dfz', 'mdz']    # https://www.cnblogs.com/tp1226/p/8453854.html
     print('info: pyzohar_%s initiation succeeded.' % __VERSION__)

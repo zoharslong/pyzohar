@@ -6,14 +6,14 @@ dataframe operation.
 @author: zoharslong
 """
 from numpy import nan as np_nan, max as np_max, min as np_min, sum as np_sum, std as np_std
-from numpy import mean as np_mean, median as np_med
+from numpy import mean as np_mean
 from pandas import merge, concat, DataFrame, cut
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
 from json import loads
-from .bsz import stz, lsz, dtz
-from .ioz import ioz
+from pyzohar.bsz import stz, lsz, dtz
+from pyzohar.ioz import ioz
 
 
 class dfBsc(ioz):
@@ -142,7 +142,6 @@ class clmMixin(dfBsc):
         """
         drop columns for nan.
         >>> from pandas import DataFrame
-        >>> from numpy import nan as np_nan
         >>> tst = clmMixin(DataFrame([{"A":np_nan,'B':1}]))
         >>> tst.drp_clm_na(rtn=True)
            B
@@ -165,7 +164,6 @@ class clmMixin(dfBsc):
         """
         static columns.
         >>> from pandas import DataFrame
-        >>> from numpy import sum as np_sum
         >>> tst = clmMixin(DataFrame([{'A':1,'B':2},{'A':1,'B':3},{'A':2,'B':4},{'A':2,'B':5},]))
         >>> tst.stt_clm(['A'], ['B'], [np_sum], rtn=True, prm='C')  # tst.stt_clm(['A'],{'B':np_sum},rtn=True,prm='C')
            A  C
@@ -246,10 +244,10 @@ class clmMixin(dfBsc):
     def add_clm_spl(self, clm_spl, lst_vls, clm_rmn=None, *, spr=False, rtn=False):
         """
         add columns from spliting an column.
-        >>> self = dfz([{'est':'A','date':'1','vls':1},{'est':'B','date':'1','vls':2},
+        >>> slf = dfz([{'est':'A','date':'1','vls':1},{'est':'B','date':'1','vls':2},
         >>>             {'est':'A','date':'2','vls':1},{'est':'B','date':'3','vls':2},])
-        >>> self.typ_to_dtf()
-        >>> self.add_clm_spl('est','vls', rtn=True)  # 按照est列，将vls列的值扩张成多个新的列
+        >>> slf.typ_to_dtf()
+        >>> slf.add_clm_spl('est','vls', rtn=True)  # 按照est列，将vls列的值扩张成多个新的列
           date  vls_A  vls_B
         0    1    1.0    2.0
         1    3    1.0    NaN
@@ -302,7 +300,7 @@ class clmMixin(dfBsc):
         4  b
         >>> tst = dfz([{'A':1},{'A':2},{'A':3},{'A':4},{'A':5},])
         >>> tst.typ_to_dtf()
-        >>> lst_sqr_cut = [0,40,60,80,100,120,140,scd.dts['msg_sqr'].max()]
+        >>> lst_sqr_cut = [0,40,60,80,100,120,140,160]
         >>> lst_sqr_lbl = ['-40','40-60','60-80','80-100','100-120','120-140','140-']
         >>> tst.add_clm_ctg('A', 'a', prm=lst_sqr_cut, ctg_lbl=lst_sqr_lbl)  # 指定分箱界限
         :param args: {'targetColumn':'newColumn'}
@@ -620,7 +618,7 @@ class dcmMixin(dfBsc):
             pass
         else:
             lst_ndx = lsz(lst_ndx).typ_to_lst(rtn=True)
-            if prm in ['keep','kep','k']:  # 当方法选择为keep时, 保留指定index的行
+            if prm in ['keep', 'kep', 'k']:  # 当方法选择为keep时, 保留指定index的行
                 lst_ndx = lsz().mrg('differ', list(self.dts.index), lst_ndx, rtn=True)
             self.set_dts(self.dts.drop(lst_ndx, axis=0), ndx_rst=ndx_rst)
         if spr:
@@ -1164,55 +1162,6 @@ class pltMixin(cllMixin):
         if rtn:
             return self.dts
 
-    def add_clm_err(self, *args, spr=False, rtn=False, prm=None):
-        """
-        学生标准化.
-        @param args:
-        @param spr:
-        @param rtn:
-        @param prm:
-        @return:
-        """
-        dct_rgs = lsz(args).rgs_to_typ(prm='dct', rtn=True)
-        lst_clm = list(dct_rgs.keys())
-        lst_new = [i + '_nrm' for i in dct_rgs.keys()] if \
-            len(args) == 1 and type(args[0]) not in [dict] else list(dct_rgs.values())
-        if prm is None:
-            self.dts['_grb'] = 1
-            self.dts_nit()
-            self.srt_clm('_grb', drp=False)
-        lst_grb = lsz(prm).typ_to_lst(rtn=True) if prm else [list(self.clm)[0]]  # 用于分组的列
-        # 计算分组的均值, 此处使用中位数
-        avg = dfz(self.dts.copy())
-        avg.stt_clm(lst_grb, lst_clm, [np_mean])
-        avg.rnm_clm({i: '_' + i + '_avg' for i in lst_clm})
-        # 计算分组的标准差
-        std = dfz(self.dts.copy())
-        std.stt_clm(lst_grb, lst_clm, [np_std])
-        std.rnm_clm({i: '_' + i + '_std' for i in lst_clm})
-        avg.mrg_dtf(std.dts, lst_grb, prm='outer')
-        # 横向拼接和学生标准化
-        self.mrg_dtf(avg.dts, lst_grb, prm='outer')
-        for i in range(len(lst_clm)):
-            self.dts[lst_new[i]] = self.dts.apply(
-                lambda x: x['_' + lst_clm[i] + '_avg'] + 3 * x['_' + lst_clm[i] + '_std'] if
-                x[lst_clm[i]] - x['_' + lst_clm[i] + '_avg'] > 3 * x['_' + lst_clm[i] + '_std'] else
-                x[lst_clm[i]], axis=1
-            )
-            self.dts[lst_new[i]] = self.dts.apply(
-                lambda x: x['_' + lst_clm[i] + '_avg'] - 3 * x['_' + lst_clm[i] + '_std'] if
-                x[lst_clm[i]] - x['_' + lst_clm[i] + '_avg'] < -3 * x['_' + lst_clm[i] + '_std'] else
-                x[lst_clm[i]], axis=1
-            )
-        self.dts_nit()
-        self.drp_clm(['_grb'])
-        self.drp_clm(['_'+i+'_std' for i in lst_clm])
-        self.drp_clm(['_'+i+'_avg' for i in lst_clm])
-        if spr:
-            self.spr_nit()
-        if rtn:
-            return self.dts
-
     def add_clm_nrm(self, *args, spr=False, rtn=False, prm=None, ltr=False):
         """
         add columns for normalization.
@@ -1239,7 +1188,7 @@ class pltMixin(cllMixin):
             self.dts_nit()
             self.srt_clm('_grb', drp=False)
         lst_grb = lsz(prm).typ_to_lst(rtn=True) if prm else [list(self.clm)[0]]     # 用于分组的列
-        # 计算分组的均值, 此处使用中位数
+        # 计算分组的均值
         avg = dfz(self.dts.copy())
         avg.stt_clm(lst_grb, lst_clm, [np_mean])
         avg.rnm_clm({i: '_'+i+'_avg' for i in lst_clm})

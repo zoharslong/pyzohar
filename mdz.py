@@ -8,7 +8,7 @@ needs sklearn, factor_analyzer
 """
 from numpy import max as np_max, min as np_min, ravel as np_ravel, argsort as np_argsort, abs as np_abs
 from numpy import array as np_array, int32 as np_int32, int64 as np_int64, float64 as np_float64
-from pandas import DataFrame
+from pandas import DataFrame, concat as pd_concat
 from re import findall as re_find
 import seaborn as sns               # plot on factor analysis
 from factor_analyzer import FactorAnalyzer, calculate_kmo, calculate_bartlett_sphericity, Rotator
@@ -23,8 +23,8 @@ from matplotlib import pyplot as plt
 from os.path import join as os_join
 from random import sample as rnd_smp
 from joblib import dump as jb_dump, load as jb_load
-from .bsz import lsz
-from .dfz import dfz
+from pyzohar.bsz import lsz
+from pyzohar.dfz import dfz
 
 
 class mdz_nit(dfz):
