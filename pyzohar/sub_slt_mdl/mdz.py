@@ -18,8 +18,8 @@ from pandas import DataFrame, concat as pd_concat
 from re import findall as re_find
 from random import sample as rnd_smp
 from os.path import join as os_join
-from pyzohar.sub_mix_bsc.bsz import lsz
-from pyzohar.sub_mix_bsc.dfz import dfz
+from pyzohar.sub_slt_bsc.bsz import lsz
+from pyzohar.sub_slt_bsc.dfz import dfz
 import seaborn as sns  # plot on factor analysis
 from factor_analyzer import FactorAnalyzer, calculate_kmo, calculate_bartlett_sphericity, Rotator
 from sklearn import metrics

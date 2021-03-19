@@ -12,8 +12,8 @@ from re import search as re_search, findall as re_findall, sub as re_sub, match 
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
 from json import loads
-from pyzohar.sub_mix_bsc.bsz import stz, lsz, dtz
-from pyzohar.sub_mix_bsc.ioz import ioz
+from pyzohar.sub_slt_bsc.bsz import stz, lsz, dtz
+from pyzohar.sub_slt_bsc.ioz import ioz
 
 
 class dfBsc(ioz):

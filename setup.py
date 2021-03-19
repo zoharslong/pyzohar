@@ -42,7 +42,9 @@ setup(
         'pymysql>=0.9.3',
         'fake-useragent>=0.1.11',
         'requests>=2.22.0',
+        'openpyxl>=3.0.3',  # excel files resolving
+        'urllib3>=1.25.8',  # some error type of http requests
     ],
-    package_data={'pyzohar': ['dst/samples/*.*']},
+    package_data={'pyzohar': ['samples/*.*']},
     include_package_data=True,
 )

@@ -30,7 +30,7 @@ from requests import post, get, TooManyRedirects, ReadTimeout
 from re import findall as re_find
 from random import randint
 from json import loads, JSONDecodeError
-from pyzohar.sub_mix_bsc.bsz import stz, lsz, dcz, dtz
+from pyzohar.sub_slt_bsc.bsz import stz, lsz, dcz, dtz
 from pyzohar.prv import dct_jgh
 # from socket import getfqdn, gethostname                               # 获得本机IP
 # from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
