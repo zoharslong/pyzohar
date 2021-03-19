@@ -5,11 +5,11 @@ Desktop.ini
 prv.py
 
 # Python:
-# *.py[cod]
 *.so
 *.egg
 *.egg-info
 dist
+venv
 idea
 build
 __pycache__
