@@ -1062,6 +1062,3 @@ class dtz(object):
                     (lst_dtt[0]+typ_dt_timedelta(days=i)).date() != lst_dtt[1].date()]
         if rtn:
             return self.val
-
-
-print('info: class on basic data type operation imported.')

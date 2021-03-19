@@ -15,6 +15,8 @@ build
 __pycache__
 
 # My configurations:
+pyzohar/.idea
+pyzohar/.idea/*
 .idea
 .idea/*
 .idea/misc.xml

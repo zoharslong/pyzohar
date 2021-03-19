@@ -6,7 +6,7 @@ Created on Fri Mar 22 16:30:38 2019
 """
 from platform import system as chk_sys
 chk_sys = chk_sys()
-__VERSION__ = '0.0.1'
+__version__ = '0.0.3'
 __doc__ = """
 pyzohar
 =====================================================================
@@ -21,8 +21,6 @@ pyzohar
 if __name__ == '__main__':
     print('info: running as a new program.')
 else:
-    from pyzohar.bsz import lsz, dtz, dcz, stz
-    from pyzohar.dfz import dfz
-    from pyzohar.mdz import mdz
-    __all__ = ['stz', 'lsz', 'dcz', 'dtz', 'dfz', 'mdz']    # https://www.cnblogs.com/tp1226/p/8453854.html
-    print('info: pyzohar_%s initiation succeeded.' % __VERSION__)
+    from pyzohar import sub_mix_bsc, sub_mix_mdl
+    __all__ = ['sub_mix_bsc', 'sub_mix_mdl']    # https://www.cnblogs.com/tp1226/p/8453854.html
+    print('info: pyzohar_%s initiation succeeded.' % __version__)

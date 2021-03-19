@@ -1231,6 +1231,3 @@ class dfz(tmsMixin, pltMixin):
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(dfz, self).__init__(dts, lcn, spr=spr)
-
-
-print('info: class on dataFrame operation imported.')

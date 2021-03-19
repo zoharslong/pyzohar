@@ -23,8 +23,8 @@ from matplotlib import pyplot as plt
 from os.path import join as os_join
 from random import sample as rnd_smp
 from joblib import dump as jb_dump, load as jb_load
-from pyzohar.bsz import lsz
-from pyzohar.dfz import dfz
+from pyzohar.sub_mix_bsc.bsz import lsz
+from pyzohar.sub_mix_bsc.dfz import dfz
 
 
 class mdz_nit(dfz):
