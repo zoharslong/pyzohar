@@ -30,7 +30,7 @@ from requests import post, get, TooManyRedirects, ReadTimeout
 from re import findall as re_find
 from random import randint
 from json import loads, JSONDecodeError
-from pyzohar.bsz import stz, lsz, dcz, dtz
+from pyzohar.sub_mix_bsc.bsz import stz, lsz, dcz, dtz
 from pyzohar.prv import dct_jgh
 # from socket import getfqdn, gethostname                               # 获得本机IP
 # from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
@@ -856,7 +856,7 @@ class apiMixin(ioBsc):
         返回本机当次的ip地址（若self.lcn.prx存在则返回该代理的ip地址）. get local ip from API.
         from https://blog.csdn.net/weixin_44285988/article/details/102837864
         from https://www.cnblogs.com/hankleo/p/11771682.html
-        >>> Telnet('116.22.50.144', '4526', timeout=2)
+        # >>> Telnet('116.22.50.144', '4526', timeout=2)
         <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
         :param url: 用于返回本次使用的本机或代理ip的API地址
         :return: ip location in str
@@ -867,8 +867,8 @@ class apiMixin(ioBsc):
             mdl_rqt = get(url, proxies=self.lcn['prx'], timeout=180)
             if mdl_rqt.status_code == 200:
                 return mdl_rqt.text.replace('\n', '')
-            elif mdl_rqt.status_code in [402,403]:
-                return re_find("IP\<\/span>: ([0-9.]*?)<",mdl_rqt.text)[0]
+            elif mdl_rqt.status_code in [402, 403]:
+                return re_find("IP\<\/span>: ([0-9.]*?)<", mdl_rqt.text)[0]
             elif mdl_rqt.status_code == 502:
                 return 'stop: 502 - connection timed out.'
             else:
@@ -879,16 +879,16 @@ class apiMixin(ioBsc):
     def _pi_prx_chk(self):
         """
         API: if proxies is alright, return True, else return False.
-        >>> Telnet('116.22.50.144', '4526', timeout=2)
-        <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
-        >>> # 如上方法的脚本示例
-        >>> try:
-        >>>     if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
-        >>>               re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
-        >>>               timeout=30):  # 使用telnet验证代理效果
-        >>>         return True
-        >>> except TimeoutError:
-        >>>     return False
+        # >>> Telnet('116.22.50.144', '4526', timeout=2)
+        # <telnetlib.Telnet at 0x1e8dcd8d548>     # 返回一个实例化后的类，说明该代理ip有效，否则返回timeOutError
+        # >>> # 如上方法的脚本示例
+        # >>> try:
+        # >>>     if Telnet(re_find('http://(.*?):.*$', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+        # >>>               re_find('http://.*:(.*$)', self.lcn['prx'][list(self.lcn['prx'].keys())[0]])[0],
+        # >>>               timeout=30):  # 使用telnet验证代理效果
+        # >>>         return True
+        # >>> except TimeoutError:
+        # >>>     return False
         :return: True or False for a good proxy
         """
         if self.lcn['prx'] in [None, 'auto']:
@@ -913,11 +913,11 @@ class apiMixin(ioBsc):
             bch, dtz_now = 0, dtz('now').typ_to_dtt(rtn=True)
             if frc:
                 self._pi_prx_jgw(prm=prm)       # 强制更新一次proxy
-            elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0,30) + 60:
+            elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0, 30) + 60:
                 self._pi_prx_jgw(prm=prm)       # 原代理超时后强制更新一次proxy
             while not self._pi_prx_chk() and bch <= rty:
                 if bch == rty:
-                    raise AttributeError('stop: max retry, cannot pass proxy test for %s times.'% str(rty))
+                    raise AttributeError('stop: max retry, cannot pass proxy test for %s times.' % str(rty))
                 self._pi_prx_jgw(prm=prm)
                 bch += 1
 
@@ -956,10 +956,10 @@ class apiMixin(ioBsc):
                         self.api_prx(frc=frc)   # 其他情况酌情更新代理
                 except (
                         ProtocolError, ChunkedEncodingError, TooManyRedirects,
-                        MaxRetryError, NewConnectionError,ConnectionError, TimeoutError
+                        MaxRetryError, NewConnectionError, ConnectionError, TimeoutError
                 ):   # proxy ip timeout, change proxy
                     print('info: ConectionError, retrying.')
-                    sleep(25+randint(0,5))
+                    sleep(25+randint(0, 5))
                     self.api_prx(frc=frc)
                 finally:
                     bch += 1

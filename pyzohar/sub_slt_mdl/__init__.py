@@ -7,3 +7,4 @@ Created on 2021.03.19
 from pyzohar.sub_mix_mdl.mdz import mdz
 
 __all__ = ['mdz']
+print('info: modelling mixin.')

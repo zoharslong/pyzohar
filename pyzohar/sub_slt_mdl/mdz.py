@@ -3,14 +3,24 @@
 """
 Created on Fri Sep 18 15:52:01 2020
 modeling operation.
-needs sklearn, factor_analyzer
+requirements = [
+    'matplotlib>=3.1.3',
+    'sklearn>=0.22.1',
+    'seaborn>=0.10.0',
+    'factor_analyzer>=0.3.2',
+    'joblib>=0.14.1',
+]
 @author: zoharslong
 """
 from numpy import max as np_max, min as np_min, ravel as np_ravel, argsort as np_argsort, abs as np_abs
 from numpy import array as np_array, int32 as np_int32, int64 as np_int64, float64 as np_float64
 from pandas import DataFrame, concat as pd_concat
 from re import findall as re_find
-import seaborn as sns               # plot on factor analysis
+from random import sample as rnd_smp
+from os.path import join as os_join
+from pyzohar.sub_mix_bsc.bsz import lsz
+from pyzohar.sub_mix_bsc.dfz import dfz
+import seaborn as sns  # plot on factor analysis
 from factor_analyzer import FactorAnalyzer, calculate_kmo, calculate_bartlett_sphericity, Rotator
 from sklearn import metrics
 from sklearn.ensemble import RandomForestClassifier
@@ -20,11 +30,7 @@ from sklearn.svm import SVC, SVR
 from sklearn.svm._classes import SVC as typ_svc, SVR as typ_svr
 from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
-from os.path import join as os_join
-from random import sample as rnd_smp
 from joblib import dump as jb_dump, load as jb_load
-from pyzohar.sub_mix_bsc.bsz import lsz
-from pyzohar.sub_mix_bsc.dfz import dfz
 
 
 class mdz_nit(dfz):
@@ -493,7 +499,7 @@ class mdz_svm(mdz_nit):
             cfs = metrics.confusion_matrix(y_tst, y_pre)
             cfs = DataFrame(cfs, columns=['p', 'n'], index=['T', 'F'])
             print('confusionMatrix and precision in %.2f:' % y_bln)
-            print(cfs, '; ', round((cfs.iloc[1, 1] + cfs.iloc[0, 0]) / (cfs.sum().sum()), 2), '; ')
+            print(cfs, '; ', round((cfs.iloc[1, 1] + cfs.iloc[0, 0]) / (cfs.values.sum()), 2), '; ')
 
     def svm_transform(self, rnm=None, prb=0.5, *, rtn=False):
         """
