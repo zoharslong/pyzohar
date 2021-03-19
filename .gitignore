@@ -2,7 +2,6 @@
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-prv.py
 
 # Python:
 *.so
@@ -15,6 +14,8 @@ build
 __pycache__
 
 # My configurations:
+dist/*
+build/*
 pyzohar/.idea
 pyzohar/.idea/*
 .idea
