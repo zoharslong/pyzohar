@@ -27,7 +27,7 @@ from urllib3.connection import NewConnectionError
 from requests.models import ChunkedEncodingError
 from requests.adapters import ProxyError
 from requests import post, get, TooManyRedirects, ReadTimeout
-from re import findall as re_find
+from re import findall as re_find, sub as re_sub
 from random import randint
 from json import loads, JSONDecodeError
 from pyzohar.sub_slt_bsc.bsz import stz, lsz, dcz, dtz
@@ -756,7 +756,7 @@ class sqlMixin(ioBsc):
                 dts = crs.fetchall()    # values in type tuple
                 clm = crs.description   # columns information
                 self.dts = pd_DataFrame(list(dts), columns=[i_clm[0] for i_clm in list(clm)]) if dts else self.dts
-            elif str_sql[:6].lower() in ['insert', 'update', 'delete']:
+            elif str_sql[:6].lower() in ['insert', 'update', 'delete', 'replac']:
                 cnn.commit()
             elif str_sql[:6].lower() in ['create']:
                 pass
@@ -773,6 +773,26 @@ class sqlMixin(ioBsc):
         finally:
             crs.close()
             cnn.close()
+
+    def sql_xpt(self):
+        """
+        export self.dts into mysql, insert and update when unique keys error
+        """
+        nt, ct, dt = 0, 0, 0
+        str_clm = re_sub("'", '', str(self.clm.tolist()))[1:-1]
+        for i_ndx in range(self.len):
+            str_ctt = '"'
+            for i in range(len(self.clm)):
+                str_ctt += self.dts.iloc[i_ndx, :][i]
+                str_ctt += '","'
+            str_ctt = str_ctt[:-2]
+            nt += 1
+            rsl = self.sql_run('insert into %s(%s) values(%s)' % (self.lcn['tbl'], str_clm, str_ctt))
+            if rsl and re_find('IntegrityError', rsl):
+                self.sql_run('replace into %s(%s) values(%s)' % (self.lcn['tbl'], str_clm, str_ctt))
+                ct += 1
+                nt -= 1
+        print('info: %s, %i inserted, %i updated.' % (self.lcn['tbl'], nt, ct))
 
 
 class apiMixin(ioBsc):

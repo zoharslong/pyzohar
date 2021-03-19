@@ -15,14 +15,18 @@ from pyzohar.sub_slt_bsc.dfz import dtz, dfz
 class spz_nit(dfz):
     """
     web spider class initiation
-    >>> dct_ppc = {'ndx_rgx':{'id':'(\d+)'},'ndx':[],'clm_typ':{}}
+    >>> dct_ppc = {
+    >>>     'ndx_rgx':{'_id':'(\d+)'},  # 指定详情页url替换规则: {用于搜索详情页的ID: url_ctt中需要替换的正则表达式}
+    >>>     'ndx':['_id','...'],        # 最终入库时的唯一组合键, 必然包含上一行的唯一识别ID
+    >>>     'clm_typ':{}                # 其他常规列处理参数
+    >>> }
     >>> spd = spz_nit(lcn={
-    >>>     'url_lst': 'https://sz.ke.com/chengjiao/start/pg(\d+)/',    # crt_url_lst按顺序使(\d+)递增生成url
-    >>>     'url_ctt': 'https://sz.ke.com/chengjiao/c(\d+)/pg1/',       # crt_url_ctt提取ppc.ndx_rgx.key替换(\d+)生成url
-    >>>     'prx':'auto', 'prx_tkn': {'neek':'', 'appkey':''},
-    >>>     'hdr':{},
+    >>>     'url_lst': 'https://sz.ke.com/chengjiao/start/pg(\d+)/',    # crt_url_lst使(\d+)递增生成url, start为占位符
+    >>>     'url_ctt': 'https://sz.ke.com/chengjiao/c(\d+)/pg1/',       # crt_url_ctt使ppc.ndx_rgx.key替换(\d+)生成url
+    >>>     'prx':'auto', 'prx_tkn': {'neek':'', 'appkey':''},          # 开启极光代理
+    >>>     'hdr':{},                                                   # 虚构请求头
     >>>     'ppc':dct_ppc})
-    >>> spd.spd_nit()
+    >>> spd.spd_bch(None, prm='lst', pg_max=9)  # 爬取列表页, 最高至第八页, 数据处理函数选择None
     """
     def __init__(self, dts=None, lcn=None, *, spr=False):
         """
