@@ -7,11 +7,22 @@ Created on Fri Mar 22 16:30:38 2019
 from platform import system as chk_sys
 from os.path import realpath as os_realpath
 from os import listdir as os_listdir
+from pyzohar.sub_slt_bsc.bsz import stz, lsz, dcz, dtz
+from pyzohar.sub_slt_bsc.dfz import dfz
+
+
+__all__ = [
+    'stz',
+    'lsz',
+    'dcz',
+    'dtz',
+    'dfz',
+]   # https://www.cnblogs.com/tp1226/p/8453854.html
 
 chk_sys = chk_sys()
-lst_xcd = ['samples', '__pycache__', '__init__.py', 'prv.py']  # list for exclude
+lst_xcd = ['samples', '__pycache__', '__init__.py']  # list for exclude
 lst_slt = [i for i in os_listdir(os_realpath(__file__).replace('__init__.py', '')) if i not in lst_xcd]
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 __doc__ = """
 pyzohar
 =====================================================================
@@ -22,18 +33,5 @@ pyzohar
   - data input and output.
   - fast modelling.
 """
-
-if __name__ == '__main__':
-    print('info: running as a new program.')
-else:
-    from pyzohar.sub_slt_bsc.bsz import stz, lsz, dcz, dtz
-    from pyzohar.sub_slt_bsc.dfz import dfz
-    __all__ = [
-        'stz',
-        'lsz',
-        'dcz',
-        'dtz',
-        'dfz',
-    ]   # https://www.cnblogs.com/tp1226/p/8453854.html
-    print('info: pyzohar_%s initiation succeeded.' % __version__)
-    print('info: slots stand by: %s' % lst_slt)
+print('info: pyzohar_%s initiation succeeded.' % __version__)
+print('info: slots stand by: %s' % lst_slt)

@@ -14,7 +14,7 @@ with open(os_join(here, 'README.md')) as f:
 
 setup(
     name="pyzohar",
-    version="0.0.3",
+    version="0.0.4",
     author="zoharslong",
     author_email="zoharslong@hotmail.com",
     description="a private package on data pre-processing.",

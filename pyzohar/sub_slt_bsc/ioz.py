@@ -31,7 +31,7 @@ from re import findall as re_find
 from random import randint
 from json import loads, JSONDecodeError
 from pyzohar.sub_slt_bsc.bsz import stz, lsz, dcz, dtz
-from pyzohar.prv import dct_jgh
+# from pyzohar.prv import dct_jgh
 # from socket import getfqdn, gethostname                               # 获得本机IP
 # from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
 
@@ -758,6 +758,8 @@ class sqlMixin(ioBsc):
                 self.dts = pd_DataFrame(list(dts), columns=[i_clm[0] for i_clm in list(clm)]) if dts else self.dts
             elif str_sql[:6].lower() in ['insert', 'update', 'delete']:
                 cnn.commit()
+            elif str_sql[:6].lower() in ['create']:
+                pass
             else:
                 raise KeyError('stop: the sentence of sql needs [select, insert, update, delete]')
             if spr:
@@ -790,13 +792,13 @@ class apiMixin(ioBsc):
     def __init__(self, dts=None, lcn=None, *, spr=False):
         super(apiMixin, self).__init__(dts, lcn, spr=spr)
 
-    def _pi_prx_jgw(self, prm='http', rty=3, dct_wht=dct_jgh):
+    def _pi_prx_jgw(self, prm='http', rty=3, dct_wht=None):
         """
         get proxy from jiguang api. 从极光代理获取一个代理ip地址, 同时使用self.lcn['prx_tim']记录这个代理的获取时间
         from http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :param prm: in ['http', 'https']
         :param rty: retry times, default 3
-        :param dct_wht: dct_jgh中为本人的代理账号
+        :param dct_wht: 极光代理的卡密白名单, http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :return: None
         """
         dct_jgw = {
@@ -894,34 +896,35 @@ class apiMixin(ioBsc):
         if self.lcn['prx'] in [None, 'auto']:
             return False
         rsp = self._pi_ipl()        # 可能返回字符串, <respons401> 等
-        if type(rsp) not in [str]:  # 非字符串默认无效
-            return False
+        if type(rsp) not in [str]:
+            return False            # 非字符串默认无效
         elif re_find(rsp, self.lcn['prx'][list(self.lcn['prx'].keys())[0]]):
             return True             # 当可以在ip地址测试中发现本次挂载的代理ip时则证明代理成功
         else:
-            return False
+            return False            # 其他情况默认无效
 
-    def api_prx(self, prm='http', frc=False, rty=5):
+    def api_prx(self, prm='http', frc=False, rty=5, dct_jgh=None):
         """
         当self.lcn.prx代理不为空, 即采用代理时, 调用代理是否有效的检查，若无效则更新代理, 更新五次失败则报错
         :param frc: forced refresh, default False means not refresh if ip test is passed
         :param prm: in ['http','https'], default 'http'
         :param rty: retry times, default 2
+        :param dct_jgh: 极光代理的卡密, http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :return:
         """
         if self.lcn['prx']:
             bch, dtz_now = 0, dtz('now').typ_to_dtt(rtn=True)
             if frc:
-                self._pi_prx_jgw(prm=prm)       # 强制更新一次proxy
+                self._pi_prx_jgw(prm=prm, dct_wht=dct_jgh)       # 强制更新一次proxy
             elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0, 30) + 60:
-                self._pi_prx_jgw(prm=prm)       # 原代理超时后强制更新一次proxy
+                self._pi_prx_jgw(prm=prm, dct_wht=dct_jgh)       # 原代理超时后强制更新一次proxy
             while not self._pi_prx_chk() and bch <= rty:
                 if bch == rty:
                     raise AttributeError('stop: max retry, cannot pass proxy test for %s times.' % str(rty))
-                self._pi_prx_jgw(prm=prm)
+                self._pi_prx_jgw(prm=prm, dct_wht=dct_jgh)
                 bch += 1
 
-    def api_run(self, *, spr=False, rtn=False, prm='post', frc=False, rty=3):
+    def api_run(self, *, spr=False, rtn=False, prm='post', frc=False, rty=3, dct_jgh=None):
         """
         兼容POST/GET两种方法的调用, self.lcn.pst在post中输入data, self.lcn.prm在get中输入params.
         此处的循环检查只针对网页连接结果反馈不为200的情况, 而不是检查返回的内容是否满足需求.
@@ -931,12 +934,13 @@ class apiMixin(ioBsc):
         :param prm: in ['post', 'get'], the methods of requests
         :param frc: force change proxy or not
         :param rty: retry, if the result is not available, define retry times, default 3.
+        :param dct_jgh: 极光代理的卡密, http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :return:
         """
         if 'url' not in self.lcn.keys():
             raise KeyError('stop: url not exist.')
         else:
-            self.api_prx(frc=frc)           # 初始化更新proxy, 仅用于处理prx='auto'的情况
+            self.api_prx(frc=frc, dct_jgh=dct_jgh)  # 初始化更新proxy, 仅用于处理prx='auto'的情况
             prc, bch, mdl_rqt, rty = True, 0, None, 1 if self.lcn['prx'] in [None] else rty
             prm = self.lcn['url_htp'] if 'url_htp' in self.lcn.keys() else prm  # self.lcn优先
             while prc and bch <= rty:
@@ -953,18 +957,18 @@ class apiMixin(ioBsc):
                     if mdl_rqt.status_code in [200]:
                         prc = False             # 当不使用代理或网页返回了信息时, 不进行循环
                     else:
-                        self.api_prx(frc=frc)   # 其他情况酌情更新代理
+                        self.api_prx(frc=frc, dct_jgh=dct_jgh)   # 其他情况酌情更新代理
                 except (
                         ProtocolError, ChunkedEncodingError, TooManyRedirects,
                         MaxRetryError, NewConnectionError, ConnectionError, TimeoutError
                 ):   # proxy ip timeout, change proxy
                     print('info: ConectionError, retrying.')
                     sleep(25+randint(0, 5))
-                    self.api_prx(frc=frc)
+                    self.api_prx(frc=frc, dct_jgh=dct_jgh)
                 finally:
                     bch += 1
                     if bch == rty:              # 当不使用代理时，默认的rty=1
-                        self.api_prx(frc=True)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
+                        self.api_prx(frc=True, dct_jgh=dct_jgh)  # 当本次POST/GET请求未能得到200且为最后一次运行时, 代理强制更新
                         print('info: max batches, proxy forces switch.')
             # 请求阶段结束, 进入API结果的装载阶段
             try:                                # 优先尝试js解码
@@ -997,7 +1001,7 @@ class apiMixin(ioBsc):
                 print(str(self.dts)[:32]+'..')
                 raise KeyError('%s do not exist, something wrong with this request.' % i)
 
-    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False, rty=3):
+    def api_mpt(self, lst_kys=None, *, spr=False, rtn=False, prm='post', frc=False, rty=3, dct_jgh=None):
         """
         import data from API in json decoding.
         :param lst_kys:
@@ -1006,9 +1010,10 @@ class apiMixin(ioBsc):
         :param prm:
         :param frc: shift proxy ip forced
         :param rty: retry times, default 3
+        :param dct_jgh: 极光代理的卡密, http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :return:
         """
-        self.api_run(prm=prm, frc=frc, rty=rty)
+        self.api_run(prm=prm, frc=frc, rty=rty, dct_jgh=dct_jgh)
         self.get_vls(lst_kys)
         if spr:
             self.spr_nit()
