@@ -530,7 +530,7 @@ class lclMixin(ioBsc):
         elif fls.rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
         elif fls.rsplit('.')[1] in ['png', 'jpeg', 'jpg']:              # 图片文件导出到硬盘
-            if type(self.dts) in [bytes]:
+            if type(self.dts) in [bytes, str]:
                 self_dts = b64decode(self.dts)
             elif type(self.dts) in [typ_pd_DataFrame]:
                 self_dts = b64decode(self.dts.iloc[0, 0])
