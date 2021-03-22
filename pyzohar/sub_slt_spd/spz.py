@@ -97,9 +97,9 @@ class spz_nit(dfz):
         prc, bch = True, 0
         while prc and bch <= rty:           # 对self.api_run获得的信息进行有效性判断后发现无效时的循环重复
             if bch == rty and rty >= 2:     # 当最后一次循环的时候强制更换proxy
-                self.api_run(frc=True, prm='get', dct_jgh=self.lcn['prx_tkn'])
+                self.api_run(frc=True, prm='get')
             else:                           # 其他时候不强制刷新一次proxy
-                self.api_run(frc=frc, prm='get', dct_jgh=self.lcn['prx_tkn'])
+                self.api_run(frc=frc, prm='get')
             if fnc_sop is None:             # 当未指定soup - xml处理函数时在此处中断运行
                 raise KeyError('stop: need a fnc_sop.')
             self.dts = fnc_sop(self)        # 自定义的网页数据摘取过程
@@ -149,8 +149,8 @@ class spz_nit(dfz):
         专用定制函数 - 由于贝壳每个筛选下只能显示100页，因此对各个行政区分别运行列表页爬虫; 本质就是self.spd_bch
         :param fnc_sop: default sop_est_shd_bke_lst
         :param srt: default {'cnt': -1}
-        :param pg_max: default 100
-        :param lst_bch: default for shenzhen beike
+        :param pg_max: max pages, default 100
+        :param lst_bch: a list of different districts, default for shenzhen beike
         :return: None
         """
         lst_bch = [

@@ -5,6 +5,7 @@ Created on Fri Mar 22 16:30:38 2019
 input/output operation.
 @author: zoharslong
 """
+from base64 import b64encode, b64decode
 from numpy import ndarray as typ_np_ndarray
 from pandas.core.series import Series as typ_pd_Series                  # 定义series类型
 from pandas.core.frame import DataFrame as typ_pd_DataFrame             # 定义dataframe类型
@@ -13,6 +14,7 @@ from pandas.core.indexes.range import RangeIndex as typ_pd_RangeIndex   # 定义
 from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGroupBy     # 定义dataframe.groupby类型
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
 from time import sleep
+from datetime import timedelta as typ_dt_timedelta
 from os import listdir
 from tempfile import gettempdir                                         # 用于搜索fakeuseragent本地temp
 from os.path import exists, join as os_join
@@ -31,15 +33,24 @@ from re import findall as re_find, sub as re_sub
 from random import randint
 from json import loads, JSONDecodeError
 from pyzohar.sub_slt_bsc.bsz import stz, lsz, dcz, dtz
-# from pyzohar.prv import dct_jgh
-# from socket import getfqdn, gethostname                               # 获得本机IP
-# from telnetlib import Telnet                                          # 代理ip有效性检测的第二种方法
+# from socket import getfqdn, gethostname  # 获得本机IP  # from telnetlib import Telnet  # 代理ip有效性检测的第二种方法
 
 
 class ioBsc(pd_DataFrame):
     """
     I/O basic
-    ioBsc.lcn in {'fld','fls','mng','mdb','cln','sql','sdb','tbl','url'/'url_lst'/'url_ctt','prx','pst','prm','hdr'}
+    ioBsc.lcn in {
+        'fld','fls',
+        'mng','mdb','cln',
+        'sql','sdb','tbl',
+        'url'/'url_lst'/'url_ctt','url_htp',
+        'hdr','pst','prm',
+        'prx',‘prx_tms’,
+        'ppc':{
+            'key': [],
+            'ndx': [],
+        },
+    }
     """
     lst_typ_dts = [
         str,
@@ -49,6 +60,7 @@ class ioBsc(pd_DataFrame):
         dict,
         dcz,
         tuple,
+        bytes,
         typ_np_ndarray,
         typ_pd_DataFrame,
         typ_pd_Series,
@@ -399,6 +411,25 @@ class lclMixin(ioBsc):
         if rtn:
             return self.dts
 
+    def mpt_img(self, fld=None, fls=None, *, spr=False, rtn=False):
+        """
+        import image from disc
+        :param fld: target fold
+        :param fls: target file
+        :param spr:
+        :param rtn:
+        :return: if rtn, return a string in type base64
+        """
+        fld = self.lcn['fld'] if fld is None else fld
+        fls = self.lcn['fls'] if fls is None else fls
+        fls = fls[0] if type(fls) in [list] else fls
+        with open(os_join(fld, fls), mode='rb') as act:
+            self.dts = b64encode(act.read())
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
+
     def lcl_mpt(self, *, sep=None, hdr=None, sht=None, spr=False, rtn=False):
         """
         local files importation.
@@ -425,6 +456,9 @@ class lclMixin(ioBsc):
             elif i_fls.rsplit('.')[1] in ['txt']:
                 self.mpt_txt(fls=i_fls)
                 self.typ_to_dtf()
+            elif i_fls.rsplit('.')[1] in ['jpeg', 'jpg', 'png']:
+                self.mpt_img(fls=i_fls)
+                self.dts = pd_DataFrame([self.dts], columns=[i_fls.rsplit('.')[1]])
             dtf_mrg = concat([dtf_mrg, self.dts], ignore_index=True)    # 忽视index的多文件纵向拼接, prm: sort=False
         self.dts = dtf_mrg
         if spr:
@@ -495,6 +529,15 @@ class lclMixin(ioBsc):
             self.dts.to_csv(os_join(fld, fls), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif fls.rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
+        elif fls.rsplit('.')[1] in ['png', 'jpeg', 'jpg']:              # 图片文件导出到硬盘
+            if type(self.dts) in [bytes]:
+                self_dts = b64decode(self.dts)
+            elif type(self.dts) in [typ_pd_DataFrame]:
+                self_dts = b64decode(self.dts.iloc[0, 0])
+            else:
+                self_dts = b64decode(self.dts[0])
+            with open(os_join(fld, fls), 'wb') as act:
+                act.write(self_dts)
         else:
             print('stop: known exporting type.')
 
@@ -799,12 +842,23 @@ class apiMixin(ioBsc):
     """
     local files input and output operations.
     >>> self = ioz(lcn={
-    >>>     'mdb':'db_tst','cln':'cl_cld',
     >>>     'url':"http://haixfsz.centaline.com.cn/service/postda",
-    >>>     'api_typ': 'post',  # 用于制定调用接口的http方法, 默认post, 也可以于此处指定或在self.api_run(prm='post')指定
-    >>>     'pst':{'uid':'haixf**', 'pwd':'**.***$', 'key':'requestCCESdeallog',
-    >>>            'ContractDate_from':'2020-01-01','ContractDate_to':'2020-01-02'}, # 用于post方法传参
+    >>>     'url_htp': 'post',  # 用于制定调用接口的http方法, 默认post, 也可以于此处指定或在self.api_run(prm='post')指定
+    >>>     'prx': 'auto',      # 是否开启代理
+    >>>     'prx_tms': '%Y-%m-%d %H:%M:%S',         # 更新代理的最后时间
+    >>>     'prx_tkn': {'neek':'','appkey':''},     # 极光代理的token
+    >>>     'pst':{
+    >>>         'uid':'haixf**',
+    >>>         'pwd':'**.***$',
+    >>>         'key':'requestCCESdeallog',
+    >>>         'ContractDate_from':'2020-01-01',
+    >>>         'ContractDate_to':'2020-01-02'
+    >>>     }, # 用于post方法传参
     >>>     'prm':{},  # 用于get方法传参
+    >>>     'hdr':{},
+    >>>     'ppc': {
+    >>>         'key': [],      # 从返回数据中提取目标数据的key
+    >>>     }
     >>> })
     >>> self.api_run()  # 从api导入数据
     >>> self.mng_xpt()  # 将api数据导出到mongodb
@@ -814,7 +868,7 @@ class apiMixin(ioBsc):
 
     def _pi_prx_jgw(self, prm='http', rty=3, dct_wht=None):
         """
-        get proxy from jiguang api. 从极光代理获取一个代理ip地址, 同时使用self.lcn['prx_tim']记录这个代理的获取时间
+        get proxy from jiguang api. 从极光代理获取一个代理ip地址, 同时使用self.lcn['prx_tms']记录这个代理的获取时间
         from http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
         :param prm: in ['http', 'https']
         :param rty: retry times, default 3
@@ -844,6 +898,7 @@ class apiMixin(ioBsc):
             'ppc': {'key': ['data']},
         }
         dct_jgw['prm']['port'] = '1' if prm == 'http' else '11'
+        dct_wht = self.lcn['prx_tkn'] if 'prx_tkn' in self.lcn.keys() else dct_wht  # 从self.lcn['prx_tkn']获得代理token
         htp = 'http' if prm == 'http' else 'https'
         prc, bch, ipp_prx = True, 0, None
         while prc and bch <= rty:
@@ -870,7 +925,7 @@ class apiMixin(ioBsc):
                 bch += 1
         if ipp_prx:
             self.lcn['prx'] = {htp: ipp_prx}
-            self.lcn['prx_tim'] = dtz('now').typ_to_dtt(rtn=True)                               # 定时更换proxy的时间戳
+            self.lcn['prx_tms'] = dtz('now').typ_to_dtt(rtn=True)                               # 定时更换proxy的时间戳
             self.lcn['hdr'].update({'User-Agent': UserAgent(use_cache_server=False).random})    # 在更新proxy的同时更换头
 
     def _pi_ipl(self, url="http://icanhazip.com/"):
@@ -936,7 +991,7 @@ class apiMixin(ioBsc):
             bch, dtz_now = 0, dtz('now').typ_to_dtt(rtn=True)
             if frc:
                 self._pi_prx_jgw(prm=prm, dct_wht=dct_jgh)       # 强制更新一次proxy
-            elif 'prx_tim' in self.lcn.keys() and (dtz_now - self.lcn['prx_tim']).seconds > randint(0, 30) + 60:
+            elif 'prx_tms' in self.lcn.keys() and (dtz_now - self.lcn['prx_tms']).seconds > randint(0, 30) + 60:
                 self._pi_prx_jgw(prm=prm, dct_wht=dct_jgh)       # 原代理超时后强制更新一次proxy
             while not self._pi_prx_chk() and bch <= rty:
                 if bch == rty:
@@ -951,7 +1006,7 @@ class apiMixin(ioBsc):
         from https://www.cnblogs.com/roadwide/p/10804888.html
         :param spr:
         :param rtn:
-        :param prm: in ['post', 'get'], the methods of requests
+        :param prm: in ['post', 'get'], the methods of requests, self.lcn['url_htp']
         :param frc: force change proxy or not
         :param rty: retry, if the result is not available, define retry times, default 3.
         :param dct_jgh: 极光代理的卡密, http://h.jiguangdaili.com/api/new_api.html; userid 158xxxx9977;
@@ -1039,6 +1094,31 @@ class apiMixin(ioBsc):
             self.spr_nit()
         if rtn:
             return self.dts
+
+    def api_tkn(self, dly=3600, frc=False, rty=2):
+        """
+        Get API token from wechat, baiduMap, needs lcn in [lcn_bdu_ocr_tkn, lcn_bdu_img_tkn, lcn_hhs_tkn]
+        @param dly: delay seconds, default 259200 for baiduMap and 3600 for wechat
+        @param frc: force to update token
+        @param rty: max retry times
+        @return: token in type str
+        """
+        dly = 2592000 if self.lcn['fls'] in ['tkn_bdu_ocr.txt', 'tkn_bdu_img.txt'] else dly
+        prc, bch = True, 0
+        if self.lcn['fls'] in listdir(self.lcn['fld']):   # 当目录中已经存在txt文件时, 读取
+            self.mpt_txt()
+            self.dts = loads(self.dts[0].replace('\n', ''))
+        else:                       # 否则虚拟一个必定超时的时间点
+            self.dts = {'tms': '2020-01-01 00:00:01'}
+        while prc and bch <= rty:
+            if frc or dtz('now').val - dtz(self.dts['tms']).typ_to_dtt(rtn=True) >= typ_dt_timedelta(seconds=dly):
+                self.api_run()   # 当强制刷新参数为True或超时时重新调取token
+                self.dts.update({'tms': dtz('now').dtt_to_typ(str_fmt='%Y-%m-%d %H:%M:%S', rtn=True)})
+                self.lcl_xpt()   # 生成本地存放文件
+                frc = False
+            else:
+                return self.get_vls(self.lcn['ppc']['key'], rtn=True)
+            bch += 1
 
 
 class ioz(mngMixin, sqlMixin, apiMixin, lclMixin):

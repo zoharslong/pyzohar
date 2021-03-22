@@ -1006,7 +1006,12 @@ class pltMixin(cllMixin):
     def _rp_cll_grb(self, lst_clm, lst_srt=None, prm_grb=-2, flt_drp=1):
         """
         drop cells on certain index of any columns for grouping by. 对变量列排序后，删除前flt_drp行特定列的值.
-        >>> tst =dfz([{'A':'1','a':'x','B':100},{'A':'2','a':'x','B':110},{'A':'1','a':'y','B':150},{'A':'2','a':'y','B':100},])
+        >>> tst =dfz([
+        >>>     {'A':'1','a':'x','B':100},
+        >>>     {'A':'2','a':'x','B':110},
+        >>>     {'A':'1','a':'y','B':150},
+        >>>     {'A':'2','a':'y','B':100},
+        >>> ])
         >>> tst.typ_to_dtf()
         >>> tst._rp_cll_grb('B', ['a','A'], -2, 1)
            A  a      B
@@ -1120,7 +1125,12 @@ class pltMixin(cllMixin):
     def add_clm_rll(self, *args, spr=False, rtn=False, prm=None, num=3, fnc='mean'):
         """
         add columns on rolling.
-        >>> tst =dfz([{'A':'1','a':'x','B':100},{'A':'2','a':'x','B':110},{'A':'1','a':'y','B':150},{'A':'2','a':'y','B':100},])
+        >>> tst =dfz([
+        >>>     {'A':'1','a':'x','B':100},
+        >>>     {'A':'2','a':'x','B':110},
+        >>>     {'A':'1','a':'y','B':150},
+        >>>     {'A':'2','a':'y','B':100},
+        >>> ])
         >>> tst.typ_to_dtf()
         >>> tst.add_clm_rll('B', 'b', num=2, fnc='mean', prm=['a','A'], rtn=True)
            A  a    B      b
