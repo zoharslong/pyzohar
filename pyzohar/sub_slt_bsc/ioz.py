@@ -15,9 +15,9 @@ from pandas.core.groupby.generic import DataFrameGroupBy as typ_pd_DataFrameGrou
 from pandas import DataFrame as pd_DataFrame, read_csv, read_excel, concat, ExcelWriter
 from time import sleep
 from datetime import timedelta as typ_dt_timedelta
-from os import listdir
+from os import listdir, makedirs
 from tempfile import gettempdir                                         # 用于搜索fakeuseragent本地temp
-from os.path import exists, join as os_join
+from os.path import join as os_join, exists as os_exists
 from openpyxl import load_workbook                                      # 保存已有的excel文件中的表
 from fake_useragent import UserAgent, VERSION as fku_version            # FakeUserAgentError,
 from pymongo import MongoClient
@@ -88,8 +88,11 @@ class ioBsc(pd_DataFrame):
         :param dts: a data set to input or output
         :return: None
         """
-        self.dts = dts if self.dts is None and dts is not None else []
-        self.lcn = lcn if self.lcn is None and lcn is not None else {}
+        try:
+            self.dts = dts.copy() if self.dts is None and dts is not None else []
+        except AttributeError:
+            self.dts = dts if self.dts is None and dts is not None else []
+        self.lcn = lcn.copy() if self.lcn is None and lcn is not None else {}
         if spr:
             self.spr_nit()
 
@@ -131,7 +134,10 @@ class ioBsc(pd_DataFrame):
         :return: None
         """
         if dts is None or type(dts) in self.lst_typ_dts:
-            self.__dts = dts
+            try:
+                self.__dts = dts.copy() if dts is not None else dts
+            except AttributeError:
+                self.__dts = dts
             self.__attr_rst('dts')
         else:
             raise TypeError('info: dts\'s type %s is not available.' % type(dts))
@@ -145,7 +151,10 @@ class ioBsc(pd_DataFrame):
         :return: None
         """
         if dts is None or type(dts) in self.lst_typ_dts:
-            self.__dts = dts
+            try:
+                self.__dts = dts.copy() if dts is not None else dts
+            except AttributeError:
+                self.__dts = dts
             self.__attr_rst('dts', ndx_rst=ndx_rst, ndx_lvl=ndx_lvl)
         else:
             raise TypeError('info: dts\'s type %s is not available.' % type(dts))
@@ -479,18 +488,20 @@ class lclMixin(ioBsc):
         fld = self.lcn['fld'] if fld is None else fld
         fls = self.lcn['fls'] if fls is None else fls
         fls = fls[0] if type(fls) in [list] else fls
-        if exists(os_join(self.lcn['fld'], fls)) and cvr is False:
+        if os_exists(os_join(self.lcn['fld'], fls)) and cvr is False:
             print("stop: the txt %s already exists." % str(self.lcn.values()))
-        elif type(self.dts) not in [str, list, typ_pd_DataFrame]:
-            print('stop: type of dts_npt needs [str, list, pd.DataFrame].')
+        elif type(self.dts) not in [str, list, dict, typ_pd_DataFrame]:
+            print('stop: type of dts_npt needs [str, list, dict, pd.DataFrame].')
         else:
-            self.dts = [self.dts] if self.typ in [str] else self.dts
-            if self.typ is list:
-                lst_dts_mpt = [str(i_dcm) for i_dcm in self.dts]
+            self_dts = [self.dts] if self.typ in [str, dict] else self.dts
+            if self.typ in [str, dict, list]:
+                lst_dts_mpt = [str(i_dcm) for i_dcm in self_dts]
             else:  # alter the type of a line in dataframe from slice to str
-                lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self.dts.to_dict(orient='split')['data']]
+                lst_dts_mpt = [str(i_dcm)[sep: -sep] for i_dcm in self_dts.to_dict(orient='split')['data']]
+            if not os_exists(self.lcn['fld']):
+                makedirs(self.lcn['fld'])
             prc_txt_writer = open(os_join(fld, fls), typ, encoding='utf-8')
-            for i in range(len(self.dts)):
+            for i in range(len(self_dts)):
                 if typ in ['a', 'A']:
                     prc_txt_writer.write('\n')
                 prc_txt_writer.writelines(lst_dts_mpt[i])
@@ -858,6 +869,7 @@ class apiMixin(ioBsc):
     >>>     'hdr':{},
     >>>     'ppc': {
     >>>         'key': [],      # 从返回数据中提取目标数据的key
+    >>>         'xpr': 0,       # 设定某个刷新本数据的超时秒数
     >>>     }
     >>> })
     >>> self.api_run()  # 从api导入数据
@@ -1097,27 +1109,44 @@ class apiMixin(ioBsc):
 
     def api_tkn(self, dly=3600, frc=False, rty=2):
         """
-        Get API token from wechat, baiduMap, needs lcn in [lcn_bdu_ocr_tkn, lcn_bdu_img_tkn, lcn_hhs_tkn]
+        Get API token from wechat, baiduMap, etc. Needs lcn.fls in type txt.
+        >>> # for a API token class, we need keys below
+        >>> lcn_bdu_ocr_tkn = {
+        >>>     'fld': './dst/doc_tkn', 'fls': 'tkn_bdu_ocr.txt',
+        >>>     'url': "https://aip.baidubce.com/oauth/2.0/token",
+        >>>     'url_htp': 'get',
+        >>>     'prm': {
+        >>>         'grant_type': 'client_credentials',
+        >>>         'client_id': 'HPn***uG8',
+        >>>         'client_secret': 'QLa***Pmj',
+        >>>     },
+        >>>     'ppc': {
+        >>>         'key': ['access_token'],    # key name for access token
+        >>>         'xpr': 2592000,             # expire in some seconds
+        >>>     }
+        >>> }   # 以百度文字识别token为例
         @param dly: delay seconds, default 259200 for baiduMap and 3600 for wechat
         @param frc: force to update token
         @param rty: max retry times
         @return: token in type str
         """
-        dly = 2592000 if self.lcn['fls'] in ['tkn_bdu_ocr.txt', 'tkn_bdu_img.txt'] else dly
+        dly = self.lcn['ppc']['xpr'] if 'xpr' in self.lcn['ppc'].keys() else dly
         prc, bch = True, 0
-        if self.lcn['fls'] in listdir(self.lcn['fld']):   # 当目录中已经存在txt文件时, 读取
-            self.mpt_txt()
-            self.dts = loads(self.dts[0].replace('\n', ''))
+        if os_exists(os_join(self.lcn['fld'], self.lcn['fls'])):
+            self.mpt_txt()          # 当目录中已经存在txt文件时, 读取
+            self.dts = loads(self.dts[0].replace('\n', '').replace("'", '"'))
         else:                       # 否则虚拟一个必定超时的时间点
             self.dts = {'tms': '2020-01-01 00:00:01'}
+            if not os_exists(self.lcn['fld']):
+                makedirs(self.lcn['fld'])
         while prc and bch <= rty:
             if frc or dtz('now').val - dtz(self.dts['tms']).typ_to_dtt(rtn=True) >= typ_dt_timedelta(seconds=dly):
-                self.api_run()   # 当强制刷新参数为True或超时时重新调取token
+                self.api_run()      # 当强制刷新参数为True或超时时重新调取token
                 self.dts.update({'tms': dtz('now').dtt_to_typ(str_fmt='%Y-%m-%d %H:%M:%S', rtn=True)})
-                self.lcl_xpt()   # 生成本地存放文件
+                self.lcl_xpt()      # 生成本地存放文件
                 frc = False
             else:
-                return self.get_vls(self.lcn['ppc']['key'], rtn=True)
+                return self.dts[self.lcn['ppc']['key'][0]]
             bch += 1
 
 

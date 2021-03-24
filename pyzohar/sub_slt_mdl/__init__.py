@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2021.03.19
+A package slot for modelling
 requirements = [
     'matplotlib>=3.1.3',
     'sklearn>=0.22.1',

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2021.03.19
+A package slot for web spider
 @author: zoharslong
 """
 from pyzohar.sub_slt_spd.spz import spz
