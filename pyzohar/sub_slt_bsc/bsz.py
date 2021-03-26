@@ -313,7 +313,7 @@ class lsz(list):
             if prn:
                 print('info: %s is not available for __len__().' % (str(self.__seq)[:8] + '..'))
 
-    def typ_to_lst(self, *, spr=False, rtn=False, prm='record'):
+    def typ_to_lst(self, *, spr=False, rtn=False, prm='records'):
         """
         alter lsz.seq's type to list.
         :param spr: let lsz = lsz.seq or not, default False
@@ -356,7 +356,7 @@ class lsz(list):
             self.seq = str(self.seq).replace("'", '')[1:-1]
         elif str_typ.lower() in ['dict', 'dct', '[dict]', '[dct]', 'listdict', 'lstdct']:  # [a,b]+[1,1]->[{a:1},{b:1}]
             self.seq = args[-1] if not self.seq else self.seq  # 当lsz.seq为空时，从*args中依次取值
-            self.seq = pd_DataFrame([self.seq], columns=lsz(args[0]).typ_to_lst(rtn=True)).to_dict(orient='record')
+            self.seq = pd_DataFrame([self.seq], columns=lsz(args[0]).typ_to_lst(rtn=True)).to_dict(orient='records')
         elif str_typ.lower() in ['listtuple', 'lsttpl', 'list_tuple', 'lst_tpl']:   # [a,b,..]+[1,1,..] ->[(a,1),..]
             if not self.seq:  # 当lsz.seq为空时，从*args中依次取值
                 int_bgn, self.seq = -1, args[0]
@@ -667,7 +667,7 @@ class dcz(dict):
             # 当dcz.seq为空时，从*args中依次取值
             self.seq = args[-1] if not self.seq else self.seq           # dcz.seq为空则取末尾的args
             self.seq = lsz(self.seq).cpy_tal(len(args[0]), rtn=True)    # dcz.seq填充至长度等同于args[0]即dict的keys
-            self.seq = pd_DataFrame([self.seq], columns=lst_clm).to_dict(orient='record')[0]
+            self.seq = pd_DataFrame([self.seq], columns=lst_clm).to_dict(orient='records')[0]
         if spr:
             self.spr_nit()
         if rtn:

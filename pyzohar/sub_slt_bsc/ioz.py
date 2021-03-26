@@ -708,7 +708,7 @@ class mngMixin(ioBsc):
         self._mpt_id = [] if not self._mpt_id else self._mpt_id     # 为后续记录输入文档的id做准备
         if type(dts_mpt) == typ_pd_Series:
             lst_ndx = dts_mpt.index.to_list() if lst_ndx is None else lst_ndx
-            dct_mpt = dts_mpt.to_dict()
+            dct_mpt = dts_mpt.to_dict(orient='dict')
         elif type(dts_mpt) == dict:
             lst_ndx = list(dts_mpt.keys()) if lst_ndx is None else lst_ndx
             dct_mpt = dts_mpt.copy()
@@ -793,9 +793,12 @@ class sqlMixin(ioBsc):
         # drop
         sql_drp = 'DROP TABLE %s'%('tb_spd_adv_bdu_kwd')
         # show tables' name in database
-        >>> "SELECT table_name FROM information_schema.tables WHERE table_schema='%s'" % self.lcn['sdb']
+        >>> chk = "SELECT table_name FROM information_schema.tables WHERE table_schema='%s'" % self.lcn['sdb']
+        >>> sql = sqlMixin()    # 以下演示execute中sql语句的两种构造方法, 两种方法效果相同
+        >>> sql.sql_run('SELECT * FROM %s WHERE %s' % (sql.lcn['tbl'], 'id>="100"'))      # 在crs.execute中只使用sql参数
+        >>> sql.sql_run("SELECT * FROM %s WHERE id>= " % sql.lcn['tbl'] + '%s', '100')    # 使用了只能定义value的args参数
         @param str_sql: sql sentences
-        @param lst_kys: the lst_dts in crs.execute(str_sql, lst_dts) for %s without '"' in str_sql
+        @param lst_kys: in crs.execute(str_sql, lst_kys) for %s without '"', only can use in WHERE's value part
         @param spr: let ioz = ioz.dts or not, default False
         @param rtn: return the result or not, default False
         @return: the target dataset in type DataFrame or None
@@ -847,6 +850,23 @@ class sqlMixin(ioBsc):
                 ct += 1
                 nt -= 1
         print('info: %s, %i inserted, %i updated.' % (self.lcn['tbl'], nt, ct))
+
+    def sql_mpt(self, str_qry=None, lst_clm='*', *, spr=False, rtn=False):
+        """
+        Import data from mysql
+        :param str_qry: a string after 'WHERE', in format 'columnName>="value"'
+        :param lst_clm: choose the columns' name to import
+        :param spr: let ioz = ioz.dts or not, default False
+        :param rtn: return the result or not, default False
+        """
+        str_sql = 'SELECT %s FROM %s' % (re_sub('[\[\]\'\"]', '', str(lst_clm)), self.lcn['tbl'])
+        if str_qry is not None:
+            str_sql = str_sql + ' WHERE ' + str_qry
+        self.sql_run(str_sql)
+        if spr:
+            self.spr_nit()
+        if rtn:
+            return self.dts
 
 
 class apiMixin(ioBsc):
