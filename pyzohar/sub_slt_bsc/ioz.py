@@ -353,7 +353,6 @@ class lclMixin(ioBsc):
     0  a  1  e
     1  b  2  f
     2  c  3  g
-
     """
 
     def __init__(self, dts=None, lcn=None, *, spr=False):
@@ -708,7 +707,7 @@ class mngMixin(ioBsc):
         self._mpt_id = [] if not self._mpt_id else self._mpt_id     # 为后续记录输入文档的id做准备
         if type(dts_mpt) == typ_pd_Series:
             lst_ndx = dts_mpt.index.to_list() if lst_ndx is None else lst_ndx
-            dct_mpt = dts_mpt.to_dict(orient='dict')
+            dct_mpt = dts_mpt.to_dict()
         elif type(dts_mpt) == dict:
             lst_ndx = list(dts_mpt.keys()) if lst_ndx is None else lst_ndx
             dct_mpt = dts_mpt.copy()

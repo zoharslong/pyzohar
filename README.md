@@ -13,11 +13,19 @@
  - See [package Reference here](https://www.xzzsmeadow.com).  
 
 ### Examples  
+Install
+```cmd
+> pip install pyzohar
 ```
+
+Import package
+```python
 from pyzohar import dfz
 lst_mpt = [{'A':1,'B':2},{'A':3,'B':4}]
-dfz_tst = dfz(dts=lst_mpt, lcn={'fld':'D:/','fls':'txt_tst.xlsx'})
-dfz_tst.lcl_xpt()  # send lst_mpt into path 'D:/txt.tst.xlsx'
+dfz_tst = dfz(dts=lst_mpt, lcn={'fld':'./doc_smp','fls':'txt_tst.xlsx'})
+dfz_tst.lcl_xpt()  # send lst_mpt into path './doc_smp/txt_tst.xlsx'
 ```
 > Use pyzohar.dfz to output data into hard disc.  
 
+### update 1.8  
+  - Fixed bugs about misusing on pandas.Series.to_dict
