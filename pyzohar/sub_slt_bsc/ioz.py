@@ -524,8 +524,10 @@ class lclMixin(ioBsc):
         if fls is None:
             fls = self.lcn['fls'][0] if type(self.lcn['fls']) in [list] else self.lcn['fls']
         if fls.rsplit('.')[1] in ['xlsx'] and typ in ['w'] and cvr:
+            self.typ_to_dtf()
             self.dts.to_excel(os_join(fld, fls), sheet_name=prm, index=ndx)
         elif fls.rsplit('.')[1] in ['xlsx'] and (typ in ['a'] or not cvr):
+            self.typ_to_dtf()
             writer = ExcelWriter(os_join(fld, fls), engine='openpyxl')
             try:
                 book = load_workbook(os_join(fld, fls))     # 尝试保存已有的文件内容
@@ -536,6 +538,7 @@ class lclMixin(ioBsc):
             writer.save()
             writer.close()
         elif fls.rsplit('.')[1] in ['csv']:
+            self.typ_to_dtf()
             self.dts.to_csv(os_join(fld, fls), encoding='UTF-8_sig')    # 不明原因的解码方式
         elif fls.rsplit('.')[1] in ['js', 'txt']:
             self.xpt_txt(typ=typ, sep=sep, cvr=cvr)
