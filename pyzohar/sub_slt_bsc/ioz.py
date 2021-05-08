@@ -739,6 +739,7 @@ class mngMixin(ioBsc):
         :param cvr: 当索引重复时是否用dts_mpt覆盖集合内的行，默认True
         :return: None
         """
+        self.typ_to_dtf()
         nt, ct, dt = 0, 0, 0
         for i in range(self.len):
             n, c, d = self.xpt_cln_dcm(self.dts.loc[i, :], lst_ndx, cvr, True)
@@ -837,6 +838,7 @@ class sqlMixin(ioBsc):
         """
         export self.dts into mysql, insert and update when unique keys error
         """
+        self.typ_to_dtf()
         nt, ct, dt = 0, 0, 0
         str_clm = re_sub("'", '', str(self.clm.tolist()))[1:-1]
         for i_ndx in range(self.len):

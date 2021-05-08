@@ -10,7 +10,7 @@
   - Fast modelling.  
 
 ### Reference 
- - See [package Reference here](https://www.xzzsmeadow.com).  
+ - See [package Reference here](https://www.xzzsmeadow.com/#/pyzohar).  
 
 ### Examples  
 Install

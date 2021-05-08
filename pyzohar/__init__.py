@@ -14,7 +14,7 @@ from pyzohar.sub_slt_bsc.dfz import dfz
 chk_sys = chk_sys()
 lst_xcd = ['samples', '__pycache__', '__init__.py']  # list for exclude
 lst_slt = [i for i in os_listdir(os_realpath(__file__).replace('__init__.py', '')) if i not in lst_xcd]
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 __doc__ = """
 pyzohar
 =====================================================================
