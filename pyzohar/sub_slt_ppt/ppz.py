@@ -26,19 +26,21 @@ class ppz_nit(dfz):
     dct_anchor = {
         'bottom': MSO_ANCHOR.BOTTOM,
         'middle': MSO_ANCHOR.MIDDLE,
+        'center': MSO_ANCHOR.MIDDLE,
         'top': MSO_ANCHOR.TOP
     }  # 纵向对齐
-    dct_util = {
-        'cm': Cm,
-        'pt': Pt,
-        'nch': Inches
-    }    # 尺度单位
     dct_align = {
         'justify': PP_ALIGN.JUSTIFY,  # 两端
         'left': PP_ALIGN.LEFT,
         'right': PP_ALIGN.RIGHT,
         'center': PP_ALIGN.CENTER,  # 居中
+        'middle': PP_ALIGN.CENTER,  # 居中
     }   # 横向对齐
+    dct_util = {
+        'cm': Cm,
+        'pt': Pt,
+        'nch': Inches
+    }    # 尺度单位
     dct_mtr = {}        # 母版的默认参数
 
     def __init__(self, dts=None, lcn=None, *, spr=False, cvr=True, ppt=None):
