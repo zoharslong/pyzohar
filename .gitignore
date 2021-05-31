@@ -12,6 +12,7 @@ venv
 idea
 build
 __pycache__
+tst.ipynb
 
 # My configurations:
 dist/*
