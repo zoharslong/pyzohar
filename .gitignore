@@ -25,5 +25,7 @@ pyzohar/.idea/*
 .idea/*
 .idea/misc.xml
 .idea/pyzohar.iml
+.ipynb_checkpoints
+.ipynb_checkpoints/*
 db.ini
 deploy_key_rsa
