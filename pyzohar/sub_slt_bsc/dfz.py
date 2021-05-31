@@ -326,9 +326,9 @@ class clmMixin(dfBsc):
             raise AttributeError('stop: edge of the category is not available.')
         # 构建分箱规则列表
         flt_cts = (flt_max - flt_min) / ctg_num
-        if prm is 'num':        # option: 确定分箱数量
+        if prm in ['num']:        # option: 确定分箱数量
             lst_bns = [flt_min] + [flt_min+(i+1)*flt_cts for i in range(int(ctg_num))]
-        elif prm is 'width':    # option: 确定分箱宽度
+        elif prm in ['width']:    # option: 确定分箱宽度
             from math import ceil
             lst_bns = [flt_min] + [flt_min+(i+1)*ctg_num for i in range(ceil(flt_cts))]
         else:

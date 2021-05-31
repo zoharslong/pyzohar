@@ -22,7 +22,7 @@ setup(
     url="https://www.xzzsmeadow.com/",
     license="MIT",
     classifiers=[
-        'Development Status :: 3 - Alpha',  # {3:Alpha,4:Beta,5:Production/Stable}
+        'Development Status :: 3 - Alpha',  # {3:Alpha, 4:Beta, 5:Production/Stable}
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Build Tools',
         'License :: OSI Approved :: MIT License',
@@ -44,6 +44,12 @@ setup(
         'requests>=2.22.0',
         'openpyxl>=3.0.3',  # excel files resolving
         'urllib3>=1.25.8',  # some error type of http requests
+        # 'matplotlib>=3.1.3',  # for sub_slt_mdl.mdz
+        # 'sklearn>=0.22.1',  # for sub_slt_mdl.mdz
+        # 'seaborn>=0.10.0',  # for sub_slt_mdl.mdz
+        # 'factor_analyzer>=0.3.2',  # for sub_slt_mdl.mdz
+        # 'joblib>=0.14.1',  # for sub_slt_mdl.mdz
+        # 'python-pptx>=0.6.19',  # for sub_slt_ppt.ppz
     ],
     package_data={'pyzohar': ['samples/*.*']},
     include_package_data=True,
