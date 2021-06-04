@@ -4,6 +4,7 @@ ehthumbs.db
 Desktop.ini
 *.pptx
 *.xlsx
+*.ipynb
 
 # Python:
 *.so
@@ -14,7 +15,6 @@ venv
 idea
 build
 __pycache__
-tst.ipynb
 
 # My configurations:
 dist/*
