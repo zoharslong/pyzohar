@@ -475,8 +475,14 @@ class clmMixin(dfBsc):
         prm.typ_to_lst()
         prm.cpy_tal(len(lst_clm), spr=True)
         for i in range(len(lst_clm)):
-            self.dts[lst_clm[i]] = self.dts.apply(lambda x: np_nan if math_isnan(x[lst_old[i]]) else
-                                                  round(x[lst_old[i]], prm[i]), axis=1)
+            if prm[i] != 0:
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: np_nan if math_isnan(x[lst_old[i]]) else round(float(x[lst_old[i]]), prm[i]), axis=1
+                )
+            else:
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: np_nan if math_isnan(x[lst_old[i]]) else int(x[lst_old[i]]), axis=1
+                )
         self.dts_nit(False)
         if spr:
             self.spr_nit()
