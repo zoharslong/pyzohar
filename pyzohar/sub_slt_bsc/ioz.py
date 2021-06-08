@@ -452,7 +452,7 @@ class lclMixin(ioBsc):
             self.lcn = {'fls': [self.lcn['fls']]}
         if type(self.dts) in [typ_pd_DataFrame] and self.len == 0:
             dtf_mrg = pd_DataFrame()
-        elif self.dts in [None, []]:
+        elif self.dts is None or self.dts == []:
             dtf_mrg = pd_DataFrame()
         else:
             dtf_mrg = self.dts.copy()
