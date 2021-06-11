@@ -53,9 +53,16 @@ class ppz_nit(dfz):
         'center': PP_ALIGN.CENTER,  # 居中
         'middle': PP_ALIGN.CENTER,  # 居中
     }             # 横向对齐
+    dct_chart_type = {
+        'bar': XL_CHART_TYPE.COLUMN_CLUSTERED,
+        'barchart': XL_CHART_TYPE.COLUMN_CLUSTERED,
+        'piechart': XL_CHART_TYPE.PIE,
+    }
     dct_legend_position = {
         'rightout': [XL_LEGEND_POSITION.RIGHT, False],
+        'bottomout': [XL_LEGEND_POSITION.BOTTOM, False],
         'rightin': [XL_LEGEND_POSITION.RIGHT, True],
+        'bottomin': [XL_LEGEND_POSITION.BOTTOM, True],
     }   # 图例位置
     dct_label_position = {
         'inside_base': XL_LABEL_POSITION.INSIDE_BASE,
@@ -83,6 +90,51 @@ class ppz_nit(dfz):
         'space_before': Pt(3),
         'space_after': Pt(3),
         'mtr': {
+            'up3down1': [
+                {
+                    'typ': 'textbox', 'tip': '顶栏总结',
+                    'left': 1.4 / 2, 'top': 0.875 / 2, 'width': 25.4 - 1.4 - 4.5, 'height': 1.5,
+                    'anchor': 'middle', 'align': 'justify',
+                },  # 顶栏总结 - 需要{paragraph:[{ctt}]}
+                {
+                    'tip': '上半内容1/3',
+                    'left': 1.4 / 2,
+                    'top': 0.875 / 2 + 1.5 + 1,
+                    'width': (25.4 - 1.4-1-2)/3,
+                    'height': (15.875 - (0.875 + 1.5 + 1))/2 - 0.25,
+                },  # 上半内容 - 需要{typ, ..}
+                {
+                    'tip': '上半内容2/3',
+                    'left': 1.4/2+(25.4-1.4-1-2)/3+0.5,
+                    'top': 0.875 / 2 + 1.5 + 1,
+                    'width': (25.4 - 1.4-1-2)/3,
+                    'height': (15.875 - (0.875 + 1.5 + 1))/2 - 0.25,
+                },  # 上半内容 - 需要{typ, ..}
+                {
+                    'tip': '上半内容3/3',
+                    'left': 1.4/2+(25.4-1.4-1-2)/3+0.5+(25.4-1.4-1-2)/3+0.5,
+                    'top': 0.875 / 2 + 1.5 + 1,
+                    'width': (25.4 - 1.4-1-2)/3 + 2,
+                    'height': (15.875 - (0.875 + 1.5 + 1))/2 - 0.25,
+                },  # 上半内容 - 需要{typ, ..}
+                {
+                    'tip': '下半内容',
+                    'left': 1.4 / 2, 'top': 0.875 / 2 + 1.5 + 1 + (15.875 - (0.875 + 1.5 + 1))/2 + 0.25,
+                    'width': (25.4 - 1.4),
+                    'height': (15.875 - (0.875 + 1.5 + 1))/2 - 0.25,
+                },  # 下半内容 - 需要{typ, ..}
+                {
+                    'typ': 'picture', 'tip': '右上图标',
+                    'left': 25.4 - 4.5, 'top': 0.875 / 2, 'height': 1.5, 'width': 4.5,
+                },  # 右上图标 - 需要图片地址的{fld, fls}
+                {
+                    'typ': 'line', 'tip': '隔断横线',
+                    'left': 1.4 / 2 + 3, 'top': 0.875 / 2 + 1.5 + 1 + (15.875 - (0.875 + 1.5 + 1))/2 - 0.001,
+                    'width': 25.4 - 1.4 - 6,
+                    'height': 0.002,
+                    'color': (225, 225, 225),
+                },  # 隔断中线 - 可省略
+            ],
             'full': [
                 {
                     'typ': 'textbox', 'tip': '顶栏总结',
@@ -371,13 +423,16 @@ class tblMixin(ppz_nit):
         for i_fit in dct_shp[str_tgt]:
             for i_row in range(len(dct_shp[str_tgt][i_fit])):
                 for i_clm in range(len(dct_shp[str_tgt][i_fit][i_row])):
-                    if type(dct_shp['cll'][i_row][i_clm]) not in [dict]:
-                        dct_shp['cll'][i_row][i_clm] = {'ctt': dct_shp['cll'][i_row][i_clm]}
-                        dct_shp['cll'][i_row][i_clm]['ctt'] = str(dct_shp['cll'][i_row][i_clm]['ctt']) if \
-                            'ctt' in dct_shp['cll'][i_row][i_clm] and \
-                            not isnull(dct_shp['cll'][i_row][i_clm]['ctt']) else ''
-                    if i_fit not in dct_shp['cll'][i_row][i_clm]:
-                        dct_shp['cll'][i_row][i_clm][i_fit] = dct_shp[str_tgt][i_fit][i_row][i_clm]
+                    try:
+                        if type(dct_shp['cll'][i_row][i_clm]) not in [dict]:
+                            dct_shp['cll'][i_row][i_clm] = {'ctt': dct_shp['cll'][i_row][i_clm]}
+                            dct_shp['cll'][i_row][i_clm]['ctt'] = str(dct_shp['cll'][i_row][i_clm]['ctt']) if \
+                                'ctt' in dct_shp['cll'][i_row][i_clm] and \
+                                not isnull(dct_shp['cll'][i_row][i_clm]['ctt']) else ''
+                        if i_fit not in dct_shp['cll'][i_row][i_clm]:
+                            dct_shp['cll'][i_row][i_clm][i_fit] = dct_shp[str_tgt][i_fit][i_row][i_clm]
+                    except IndexError:
+                        break
 
     def fit_cll(self, dct_shp):
         """
@@ -486,21 +541,24 @@ class pltMixin(ppz_nit):
         """
         generate axis in category and value
         """
-        dct_m = self.lcn['ppt']['mtr']
-        for i_axs in [dct_shp['obj_plt'].category_axis, dct_shp['obj_plt'].value_axis]:
-            i_axs.has_major_gridlines = False
-            i_axs.has_minor_gridlines = False
-            i_axs.minor_tick_mark = XL_TICK_MARK.NONE
-            i_axs.major_tick_mark = XL_TICK_MARK.NONE
-            i_axs.tick_labels.font.name = dct_m['fontName']
-            i_axs.tick_labels.font.size = dct_m['fontSize_label'] if \
-                i_axs in [dct_shp['obj_plt'].category_axis] else dct_m['fontSize_label_2']
-            i_axs.tick_labels.font.bold = False
-            i_axs.tick_labels.font.italic = False
-            i_axs.tick_labels.font.color.rgb = RGBColor(*self.dct_plt['gry_dep'])
-            i_axs.format.line.color.rgb = RGBColor(*self.dct_plt['gry'])
-            # i_axs.maximum_scale = 100.0  # 纵坐标最大值
-            # i_axs.minimum_scale = 0.0  # 纵坐标最小值
+        try:
+            dct_m = self.lcn['ppt']['mtr']
+            for i_axs in [dct_shp['obj_plt'].category_axis, dct_shp['obj_plt'].value_axis]:
+                i_axs.has_major_gridlines = False
+                i_axs.has_minor_gridlines = False
+                i_axs.minor_tick_mark = XL_TICK_MARK.NONE
+                i_axs.major_tick_mark = XL_TICK_MARK.NONE
+                i_axs.tick_labels.font.name = dct_m['fontName']
+                i_axs.tick_labels.font.size = dct_m['fontSize_label'] if \
+                    i_axs in [dct_shp['obj_plt'].category_axis] else dct_m['fontSize_label_2']
+                i_axs.tick_labels.font.bold = False
+                i_axs.tick_labels.font.italic = False
+                i_axs.tick_labels.font.color.rgb = RGBColor(*self.dct_plt['gry_dep'])
+                i_axs.format.line.color.rgb = RGBColor(*self.dct_plt['gry'])
+                # i_axs.maximum_scale = 100.0  # 纵坐标最大值
+                # i_axs.minimum_scale = 0.0  # 纵坐标最小值
+        except ValueError:
+            print('info: no axis in this type of chart.')
 
     def gnr_lbl(self, dct_shp):
         """
@@ -519,12 +577,13 @@ class pltMixin(ppz_nit):
             plt.has_data_labels = False
 
     def gnr_plt(self, ndx_sld, dct_shp):
+        """"""
         chart_data = CategoryChartData()
         chart_data.categories = dct_shp['clm']
         for i in dct_shp['cll']:
             chart_data.add_series(i[0], tuple(i[1:]))
         dct_shp['obj_plt'] = self.lcn['ppt'][ndx_sld]['obj_shp'].add_chart(
-            XL_CHART_TYPE.COLUMN_CLUSTERED,
+            self.dct_chart_type[dct_shp['typ'].lower()],
             self.dct_util[self.lcn['ppt']['mtr']['utl']](dct_shp['left']),
             self.dct_util[self.lcn['ppt']['mtr']['utl']](dct_shp['top']),
             self.dct_util[self.lcn['ppt']['mtr']['utl']](dct_shp['width']),

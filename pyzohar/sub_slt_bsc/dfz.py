@@ -7,7 +7,7 @@ dataframe operation.
 """
 from numpy import nan as np_nan, max as np_max, min as np_min, sum as np_sum, std as np_std
 from numpy import mean as np_mean
-from pandas import merge, concat, DataFrame, cut
+from pandas import merge, concat, DataFrame, cut, isnull as pd_isnull
 from re import search as re_search, findall as re_findall, sub as re_sub, match as re_match
 from pandas.core.indexes.base import Index as typ_pd_Index              # 定义dataframe.columns类型
 from math import isnan as math_isnan
@@ -475,14 +475,16 @@ class clmMixin(dfBsc):
         prm.typ_to_lst()
         prm.cpy_tal(len(lst_clm), spr=True)
         for i in range(len(lst_clm)):
-            if prm[i] != 0:
+            if prm[i] != 0 and lst_old[i] in self.clm:
                 self.dts[lst_clm[i]] = self.dts.apply(
-                    lambda x: np_nan if math_isnan(x[lst_old[i]]) else round(float(x[lst_old[i]]), prm[i]), axis=1
+                    lambda x: np_nan if pd_isnull(x[lst_old[i]]) else round(float(x[lst_old[i]]), prm[i]), axis=1
+                )
+            elif lst_old[i] in self.clm:
+                self.dts[lst_clm[i]] = self.dts.apply(
+                    lambda x: np_nan if pd_isnull(x[lst_old[i]]) else int(x[lst_old[i]]), axis=1
                 )
             else:
-                self.dts[lst_clm[i]] = self.dts.apply(
-                    lambda x: np_nan if math_isnan(x[lst_old[i]]) else int(x[lst_old[i]]), axis=1
-                )
+                print('info: %s not in the dfz' % lst_old[i])
         self.dts_nit(False)
         if spr:
             self.spr_nit()

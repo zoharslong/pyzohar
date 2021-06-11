@@ -29,3 +29,5 @@ dfz_tst.lcl_xpt()  # send lst_mpt into path './doc_smp/txt_tst.xlsx'
 
 ### update 1.8  
   - Fixed bugs about misusing on pandas.Series.to_dict
+### update 1.10
+  - Add new slot for generating pptx
